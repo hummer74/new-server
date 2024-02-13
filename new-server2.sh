@@ -35,7 +35,7 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    read  -p  "Press Enter for process..."
    curl -O https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh
    chmod +x wireguard-install.sh
-   ./wireguard-install.sh &&
+   . wireguard-install.sh
    sysctl --system
    systemctl restart wg-quick@wg0
    systemctl status wg-quick@wg0
@@ -52,7 +52,7 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    read  -p  "Press Enter for process..."
    curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
    chmod +x openvpn-install.sh
-   ./openvpn-install.sh &&
+   . openvpn-install.sh
 else
     echo "Ok. Go to next point..."
 fi
