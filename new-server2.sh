@@ -7,7 +7,9 @@ read -p "Do you want to proceed? (y/n) " yn1
 if [[ "$yn1" = [y] && "$yn1" -gt 0 ]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
    read  -p  "Press Enter for process..."
-   bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+   curl -O https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+   chmod +x install-release.sh
+   ./install-release.sh &&
 else
     echo "Ok. Go to next point..."
     break
