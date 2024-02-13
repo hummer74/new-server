@@ -59,10 +59,6 @@ EOF
 
 
 echo "sudo mc" >> ~/.profile
-echo "sudo mc" >> ~/.config/htop/htoprc
-echo "sudo mc" >> ~/.profile
-echo "sudo mc" >> ~/.profile
-echo "sudo mc" >> ~/.profile
 echo ""
 echo ""
 sysctl --system
