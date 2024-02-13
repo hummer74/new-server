@@ -7,7 +7,7 @@ read -p "Do you want to proceed? (y/n) " yn1
 if [[ "$yn1" = [y] && "$yn1" -gt 0 ]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
    read  -p  "Press Enter for process..."
-   bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install &&
+   bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 else
     echo "Ok. Go to next point..."
     break
@@ -20,7 +20,7 @@ read -p "Do you want to proceed? (y/n) " yn2
 if [[ "$yn2" = [y] && "$yn2" -gt 0 ]]; then
    echo "# Ok. Install 3X-UI."
    read  -p  "Press Enter for process..."
-   bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) &&
+   bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 
 else
     echo "Ok. Go to next point..."
