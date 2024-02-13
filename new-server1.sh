@@ -41,7 +41,7 @@ echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
 read  -p  "Press Enter for process..."
-apt install mc curl wget htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales -y &&
+apt install mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales -y &&
 echo ""
 echo ""
 echo ""
@@ -78,40 +78,35 @@ echo ""
 echo ""
 echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
-echo ""
 echo -e "\033[31mDon't forget new root password! ROOT IDENTITY in Termius!\033[0m"
 echo ""
 echo ""
 echo ""
-echo ""
-echo ""
-echo ""
-echo "# Please copy '.ssh' directory from your LOCAL-MACHINE to REMOTE /home directory!!!"
+echo "# Copy '.ssh' directory from 7z archive."
 read  -p  "Press Enter for continue..."
-echo ""
-echo ""
-echo ""
-echo ""
-echo ""
+curl -O https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
+7za x setup.7z
 echo ""
 echo "Fix directory permissions"
-# Fix directory permissions
+chmod 700 ~/.config/htop
+chmod 700 ~/.config/mc
 chmod 700 ~/.ssh
 echo ""
 echo "Fix all key permissions"
-# Fix all key permissions
 chmod 600 ~/.ssh/*
 chmod 644 ~/.ssh/*.pub
 echo ""
 echo "Fix special files permissions"
-# Fix special files permissions
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
 echo ""
 echo ""
 echo ""
-echo ""
+
+# rm ~/setup.7z
+
+
 echo -e "\033[31mLast update and reboot...\033[0m"
 read  -p  "Press Enter for update and reboot..."
 apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && #reboot now
