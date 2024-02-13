@@ -4,13 +4,13 @@ echo ""
 echo ""
 echo "Install VLESS, Xray-Reality."
 read -p "Do you want to proceed? (y/n) " yn1
-if [[ "$yn1" = [y] && "$yn1" -gt 0 ]]; then
+if [[ "$yn1" == "y" ]] || [["$yn1" == "Y"]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
    read  -p  "Press Enter for process..."
    curl -O https://github.com/XTLS/Xray-install/raw/main/install-release.sh
    chmod +x install-release.sh
    ./install-release.sh &&
-else
+fi
     echo "Ok. Go to next point..."
     break
 fi
