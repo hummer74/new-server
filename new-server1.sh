@@ -64,10 +64,6 @@ systemctl status fail2ban.service
 echo ""
 echo ""
 echo ""
-echo  -e "\033[31m# Change root password to 'ROOT identity'!\033[0m"
-read  -p  "Press Enter for process..."
-echo "root:Ux8H29XWFSTvbnfb5X" | chpasswd
-echo ""
 echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
 echo -e "\033[31mDon't forget new root password! ROOT IDENTITY in Termius!\033[0m"
@@ -79,6 +75,7 @@ read  -p  "Press Enter for continue..."
 curl -O https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
 7za x setup.7z
 echo ""
+rm ~/setup.7z
 echo "Fix directory permissions"
 chmod 700 ~/.config/htop
 chmod 700 ~/.config/mc
@@ -92,7 +89,13 @@ echo "Fix special files permissions"
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
-rm ~/setup.7z
+echo ""
+echo ""
+echo ""
+echo  -e "\033[31m# Change root password to 'ROOT identity'!\033[0m"
+read  -p  "Press Enter for process..."
+cat ~/.ssh/passwd.txt | chpasswd
+echo ""
 echo ""
 echo ""
 echo ""
@@ -101,6 +104,8 @@ read -p "Do you want to proceed? (y/n)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
    read  -p  "Press Enter for process..."
+   wget -O up-xray.sh https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+   chmod +x up-xray.sh
    bash <(curl -Ls https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
 else
     echo "Ok. Go to next point..."
@@ -114,6 +119,8 @@ read -p "Do you want to proceed? (y/n)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install 3X-UI."
    read  -p  "Press Enter for process..."
+   wget -O up-3x-ui.sh https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh
+   chmod +x up-3x-ui.sh
    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 else
     echo "Ok. Go to next point..."
@@ -126,6 +133,8 @@ read -p "Do you want to proceed? (y/n)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install WireGuard."
    read  -p  "Press Enter for process..."
+   wget -O up-wreguard.sh https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh
+   chmod +x up-wreguard.sh
    bash <(curl -Ls https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh)
    sysctl --system
    systemctl restart wg-quick@wg0
@@ -141,6 +150,8 @@ read -p "Do you want to proceed? (y/n)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install OpenVPN."
    read  -p  "Press Enter for process..."
+   wget -O up-openvpn.sh https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
+   chmod +x up-openvpn.sh
    bash <(curl -Ls https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh)
 else
     echo "Ok. Go to next point..."
@@ -153,4 +164,4 @@ read  -p  "Press Enter for last update and reboot..."
 apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && reboot now
 echo ""
 echo ""
-echo ""
+echo "REBOOT..."
