@@ -7,7 +7,6 @@ sudo cat <<EOF | sudo tee /etc/default/locale
 LANG="ru_RU.UTF-8"
 #LANG="en_US.UTF-8"
 EOF
-
-echo "sudo mc" >> ~/.profile
 echo ""
 echo ""
+echo "Bye!"
