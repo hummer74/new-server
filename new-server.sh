@@ -97,10 +97,10 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-curl -O https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
-7za x setup.7z -aoa
+curl -O /root/setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
+7za x /root/setup.7z -aoa
 echo ""
-rm ~/setup.7z
+rm /root/setup.7z
 echo "Fix directory permissions"
 chmod 700 ~/.config/htop
 chmod 700 ~/.config/mc
@@ -143,23 +143,25 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-curl -O https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
+curl -O /home/opossum/opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
+cd /home/opossum
 7za x opossum.7z -aoa
 echo ""
-rm ~/opossum.7z
+rm /home/opossum/opossum.7z
 echo "Fix directory permissions"
-chmod 700 ~/.config/htop
-chmod 700 ~/.config/mc
-chmod 700 ~/.ssh
+chmod 700 /home/opossum/.config/htop
+chmod 700 /home/opossum/.config/mc
+chmod 700 /home/opossum/.ssh
 echo ""
 echo "Fix all key permissions"
-chmod 600 ~/.ssh/*
-chmod 644 ~/.ssh/*.pub
+chmod 600 /home/opossum/.ssh/*
+chmod 644 /home/opossum/.ssh/*.pub
 echo ""
 echo "Fix special files permissions"
-chmod 644 ~/.ssh/authorized_keys
-chmod 644 ~/.ssh/known_hosts
-chmod 644 ~/.ssh/config
+chmod 644 /home/opossum/.ssh/authorized_keys
+chmod 644 /home/opossum/.ssh/known_hosts
+chmod 644 /home/opossum/.ssh/config
+cd /root 
 echo ""
 echo ""
 echo ""
