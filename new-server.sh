@@ -67,7 +67,7 @@ sudo sh -c "sed -i 's/\s\s*/ /g' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
-echo ignoreip = 176.226.128.0/17 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 > /etc/fail2ban/jail.local
+echo ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 > /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
@@ -171,6 +171,7 @@ echo ""
 systemctl --failed
 read  -p  "Press Enter for process..."
 systemctl reset-failed
+systemctl --failed
 echo ""
 echo -e "\033[31mLast update and reboot...\033[0m"
 read  -p  "Press Enter for last update and reboot..."
