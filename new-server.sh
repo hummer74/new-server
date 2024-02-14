@@ -97,10 +97,10 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-curl -O /root/setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
-7za x /root/setup.7z -aoa
+curl -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
+7za x setup.7z -aoa
 echo ""
-rm /root/setup.7z
+rm setup.7z
 echo "Fix directory permissions"
 chmod 700 ~/.config/htop
 chmod 700 ~/.config/mc
@@ -143,11 +143,11 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-curl -O /home/opossum/opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
 cd /home/opossum
+curl -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
 7za x opossum.7z -aoa
 echo ""
-rm /home/opossum/opossum.7z
+rm opossum.7z
 echo "Fix directory permissions"
 chmod 700 /home/opossum/.config/htop
 chmod 700 /home/opossum/.config/mc
