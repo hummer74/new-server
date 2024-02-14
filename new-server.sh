@@ -97,7 +97,7 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-curl -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
+wget -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
 7za x setup.7z -aoa
 echo ""
 rm setup.7z
@@ -144,7 +144,7 @@ echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
 cd /home/opossum
-curl -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
+wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
 7za x opossum.7z -aoa
 echo ""
 rm opossum.7z
