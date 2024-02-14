@@ -10,6 +10,8 @@ echo  -e "\033[31m# Change PRETTY hostname!!!\033[0m"
 read  -p  "Press any key..."
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname $newhostname --pretty
+read -p "Type new STATIC hostname here: " newhostname1
+hostnamectl set-hostname $newhostname1
 hostnamectl
 echo ""
 echo ""
