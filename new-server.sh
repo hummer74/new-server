@@ -6,7 +6,7 @@ apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean &&
 echo ""
 echo ""
 echo ""
-echo  -e "\033[31m# Change hostname!!!\033[0m"
+echo  -e "\033[31m# Change PRETTY hostname!!!\033[0m"
 read  -p  "Press Enter for process..."
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname $newhostname --pretty
@@ -67,6 +67,8 @@ sudo sh -c "sed -i 's/\s\s*/ /g' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
+echo ignoreip = 176.226.128.0/17 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 > /etc/fail2ban/jail.local
+cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
 echo ""
@@ -122,7 +124,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install 3X-UI."
-echo -e "# Opossum, StandardPass, Port: \033[31m33900\033[0m."
+echo -e "\033[31m# Opossum, StandardPass, Port: 33900\033[0m."
 read -p "Do you want to proceed? (y/n)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install 3X-UI."
@@ -166,6 +168,9 @@ else
 fi
 echo ""
 echo ""
+systemctl --failed
+read  -p  "Press Enter for process..."
+systemctl reset-failed
 echo ""
 echo -e "\033[31mLast update and reboot...\033[0m"
 read  -p  "Press Enter for last update and reboot..."
