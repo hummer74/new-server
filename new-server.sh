@@ -7,7 +7,7 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Change PRETTY hostname!!!\033[0m"
-read  -p  "Press Enter for process..."
+read  -p  "Press any key..."
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname $newhostname --pretty
 hostnamectl
@@ -34,7 +34,7 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Change SSH port to 24940.\033[0m"
-read  -p  "Press Enter for process..."
+read  -p  "Press any key..."
 grep --color '#Port ' /etc/ssh/sshd_config
 sudo sh -c "sed -i 's/#Port /Port /' /etc/ssh/sshd_config"
 grep --color 'Port ' /etc/ssh/sshd_config; read -p "Current SSH port : " search
@@ -117,17 +117,17 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Change root password to 'ROOT identity'!\033[0m"
-read  -p  "Press Enter for process..."
+read  -p  "Press any key..."
 cat ~/.ssh/passwd.txt | chpasswd
 echo ""
 echo ""
 echo ""
 echo ""
 echo "Install VLESS, Xray-Reality."
-read -p "Do you want to proceed? (y/n)" yn1
+read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
-   read  -p  "Press Enter for process..."
+   read  -p  "Press any key..."
    wget -O up-xray.sh https://github.com/XTLS/Xray-install/raw/main/install-release.sh
    chmod +x up-xray.sh
    bash <(curl -Ls https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
@@ -139,11 +139,12 @@ echo ""
 echo ""
 echo "# Install 3X-UI."
 echo -e "\033[31m# Opossum, StandardPass, Port: 33900\033[0m."
-read -p "Do you want to proceed? (y/n)" yn1
+read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install 3X-UI."
-   read  -p  "Press Enter for process..."
-   wget -O up-3x-ui.sh https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh
+   read  -p  "Press any key..."
+   wget -O zz-3x-ui.sh https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh
+   echo "x-ui" > up-3x-ui.sh
    chmod +x up-3x-ui.sh
    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 else
@@ -153,10 +154,10 @@ echo ""
 echo ""
 echo ""
 echo -e "# Install WireGuard, port \033[31m33901\033[0m."
-read -p "Do you want to proceed? (y/n)" yn1
+read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install WireGuard."
-   read  -p  "Press Enter for process..."
+   read  -p  "Press any key..."
    wget -O up-wreguard.sh https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh
    chmod +x up-wreguard.sh
    bash <(curl -Ls https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh)
@@ -170,10 +171,10 @@ echo ""
 echo ""
 echo ""
 echo -e "# Install OpenVPN, port \033[31m33902\033[0m."
-read -p "Do you want to proceed? (y/n)" yn1
+read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install OpenVPN."
-   read  -p  "Press Enter for process..."
+   read  -p  "Press any key..."
    wget -O up-openvpn.sh https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
    chmod +x up-openvpn.sh
    bash <(curl -Ls https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh)
@@ -183,7 +184,7 @@ fi
 echo ""
 echo ""
 systemctl --failed
-read  -p  "Press Enter for process..."
+read  -p  "Press any key..."
 systemctl reset-failed
 systemctl --failed
 echo ""
