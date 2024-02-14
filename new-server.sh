@@ -15,6 +15,8 @@ echo ""
 echo ""
 echo ""
 echo "# Disable ping and IPv6."
+echo "blacklist ipv6 " > /etc/modprobe.d/blacklist-ipv6.conf
+update-initramfs -u
 if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
    echo "Ping already blocked."
 else
@@ -38,6 +40,18 @@ sudo sh -c "sed -i 's/#Port /Port /' /etc/ssh/sshd_config"
 grep --color 'Port ' /etc/ssh/sshd_config; read -p "Current SSH port : " search
 read -p "New (desired) SSH port : " replace
 sudo sh -c "sed -i 's/Port $search/Port $replace/' /etc/ssh/sshd_config"
+echo ""
+echo ""
+echo ""
+grep --color 'PermitRootLogin yes' /etc/ssh/sshd_config
+sudo sh -c "sed -i 's/PermitRootLogin yes/PermitRootLogin without-password/' /etc/ssh/sshd_config"
+grep --color 'PermitRootLogin without-password' /etc/ssh/sshd_config
+grep --color '#PubkeyAuthentication yes' /etc/ssh/sshd_config
+sudo sh -c "sed -i 's/#PubkeyAuthentication/PubkeyAuthentication/' /etc/ssh/sshd_config"
+grep --color 'PubkeyAuthentication yes' /etc/ssh/sshd_config
+echo ""
+echo ""
+echo ""
 systemctl restart ssh
 systemctl status ssh
 echo ""
@@ -67,7 +81,8 @@ sudo sh -c "sed -i 's/\s\s*/ /g' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
 sudo sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
-echo ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 > /etc/fail2ban/jail.local
+echo '[DEFAULT]' > /etc/fail2ban/jail.local
+echo 'ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 ' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 echo ""
