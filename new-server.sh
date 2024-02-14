@@ -87,19 +87,16 @@ echo '[DEFAULT]' > /etc/fail2ban/jail.local
 echo 'ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 ' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
-echo ""
-echo ""
-echo ""
 echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
 echo -e "\033[31mDon't forget new root password! ROOT IDENTITY in Termius!\033[0m"
+read  -p  "Press any key..."
 echo ""
 echo ""
 echo ""
-echo "# Copy .directory from 7z archive."
+echo "# Copy /root/.dir from archive.pass."
 wget -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
 7za x setup.7z -aoa
-echo ""
 rm setup.7z
 echo "Fix directory permissions"
 chmod 700 ~/.config/htop
@@ -114,22 +111,18 @@ echo "Fix special files permissions"
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
-echo ""
-echo ""
-echo ""
-echo  -e "\033[31m# Change root password to 'ROOT identity'!\033[0m"
 cat ~/.ssh/passwd.txt | chpasswd
 echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
+userdel -r opossum
 if [ $(id -u) -eq 0 ]; then
 	read -p "Enter username : " username
 	read -s -p "Enter password : " password
 	egrep "^$username" /etc/passwd >/dev/null
 	if [ $? -eq 0 ]; then
 		echo "$username exists!"
-		exit 1
 	else
 		pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
 		useradd -m -p "$pass" "$username"
@@ -137,16 +130,11 @@ if [ $(id -u) -eq 0 ]; then
 	fi
 else
 	echo "Only root may add a user to the system."
-	exit 2
 fi
-echo ""
-echo ""
-echo ""
-echo "# Copy .directory from 7z archive."
 cd /home/opossum
 wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
+echo "# Copy /opossum.dir from archive.pass."
 7za x opossum.7z -aoa
-echo ""
 rm opossum.7z
 echo "Fix directory permissions"
 chmod 700 /home/opossum/.config/htop
