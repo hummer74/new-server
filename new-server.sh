@@ -97,7 +97,6 @@ echo ""
 echo ""
 echo ""
 echo "# Copy .directory from 7z archive."
-read  -p  "Press Enter for continue..."
 curl -O https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
 7za x setup.7z -aoa
 echo ""
@@ -119,9 +118,48 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Change root password to 'ROOT identity'!\033[0m"
-read  -p  "Press any key..."
 cat ~/.ssh/passwd.txt | chpasswd
 echo ""
+echo ""
+echo ""
+echo  -e "\033[31m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
+if [ $(id -u) -eq 0 ]; then
+	read -p "Enter username : " username
+	read -s -p "Enter password : " password
+	egrep "^$username" /etc/passwd >/dev/null
+	if [ $? -eq 0 ]; then
+		echo "$username exists!"
+		exit 1
+	else
+		pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
+		useradd -m -p "$pass" "$username"
+		[ $? -eq 0 ] && echo "User has been added to system!" || echo "Failed to add a user!"
+	fi
+else
+	echo "Only root may add a user to the system."
+	exit 2
+fi
+echo ""
+echo ""
+echo ""
+echo "# Copy .directory from 7z archive."
+curl -O https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
+7za x opossum.7z -aoa
+echo ""
+rm ~/opossum.7z
+echo "Fix directory permissions"
+chmod 700 ~/.config/htop
+chmod 700 ~/.config/mc
+chmod 700 ~/.ssh
+echo ""
+echo "Fix all key permissions"
+chmod 600 ~/.ssh/*
+chmod 644 ~/.ssh/*.pub
+echo ""
+echo "Fix special files permissions"
+chmod 644 ~/.ssh/authorized_keys
+chmod 644 ~/.ssh/known_hosts
+chmod 644 ~/.ssh/config
 echo ""
 echo ""
 echo ""
