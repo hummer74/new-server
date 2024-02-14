@@ -70,7 +70,6 @@ sudo sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
 echo ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 > /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
-systemctl status fail2ban.service
 echo ""
 echo ""
 echo ""
@@ -83,7 +82,7 @@ echo ""
 echo "# Copy .directory from 7z archive."
 read  -p  "Press Enter for continue..."
 curl -O https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
-7za x setup.7z
+7za x setup.7z -aoa
 echo ""
 rm ~/setup.7z
 echo "Fix directory permissions"
@@ -175,7 +174,8 @@ systemctl --failed
 echo ""
 echo -e "\033[31mLast update and reboot...\033[0m"
 read  -p  "Press Enter for last update and reboot..."
-apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && reboot now
+apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
 echo ""
 echo ""
 echo "REBOOT..."
+reboot now
