@@ -89,13 +89,12 @@ cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
-echo -e "\033[31mDon't forget new root password! ROOT IDENTITY in Termius!\033[0m"
-read  -p  "Press any key..."
 echo ""
 echo ""
 echo ""
-echo "# Copy /root/.dir from archive.pass."
 wget -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z 
+echo -e "\033[31m# Copy /root/.dir from archive.pass.\033[0m"
+read  -p  "Press any key..."
 7za x setup.7z -aoa
 rm setup.7z
 echo "Fix directory permissions"
@@ -116,40 +115,27 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
-userdel -r opossum
 if [ $(id -u) -eq 0 ]; then
-	read -p "Enter username : " username
 	read -s -p "Enter password : " password
-	egrep "^$username" /etc/passwd >/dev/null
+	egrep "opossum" /etc/passwd >/dev/null
 	if [ $? -eq 0 ]; then
-		echo "$username exists!"
+		echo "opossum exists!"
 	else
 		pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
-		useradd -m -p "$pass" "$username"
-		[ $? -eq 0 ] && echo "User has been added to system!" || echo "Failed to add a user!"
+		useradd -m -p "$pass" "opossum"
+		[ $? -eq 0 ] && echo "User opossum has been added to system!" || echo "Failed to add a user!"
+		usermod -a -G sudo opossum
 	fi
 else
 	echo "Only root may add a user to the system."
 fi
 cd /home/opossum
-wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z 
-echo "# Copy /opossum.dir from archive.pass."
-7za x opossum.7z -aoa
-rm opossum.7z
-echo "Fix directory permissions"
-chmod 700 /home/opossum/.config/htop
-chmod 700 /home/opossum/.config/mc
-chmod 700 /home/opossum/.ssh
-echo ""
-echo "Fix all key permissions"
-chmod 600 /home/opossum/.ssh/*
-chmod 644 /home/opossum/.ssh/*.pub
-echo ""
-echo "Fix special files permissions"
-chmod 644 /home/opossum/.ssh/authorized_keys
-chmod 644 /home/opossum/.ssh/known_hosts
-chmod 644 /home/opossum/.ssh/config
-cd /root 
+wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
+wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
+chown -R opossum /home/opossum
+chown -R opossum /home/opossum/*
+chmod +x opossum.sh
+cd /root
 echo ""
 echo ""
 echo ""
