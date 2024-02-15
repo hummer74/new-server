@@ -22,5 +22,6 @@ cd /home/opossum
 wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
 wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
 chown opossum /home/opossum/opossum.*
+chmod +x opossum.sh
 cd /root
 echo ""
