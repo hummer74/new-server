@@ -18,4 +18,6 @@ echo "Fix special files permissions"
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
+chown -R opossum /home/opossum
+chown -R opossum /home/opossum/*
 echo ""
