@@ -212,6 +212,13 @@ read  -p  "Press any key..."
 systemctl reset-failed
 systemctl --failed
 echo ""
+echo ""
+echo ""
+read  -p  "Type server NAME for TOUCH...     " servname
+touch zzz-$servname
+echo ""
+echo ""
+echo ""
 echo -e "\033[31mLast update and reboot...\033[0m"
 read  -p  "Press any key for last update and reboot..."
 apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
