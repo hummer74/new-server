@@ -122,6 +122,7 @@ echo ""
 echo ""
 echo ""
 echo  -e "\033[31m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
+userdel -r opossum
 if [ $(id -u) -eq 0 ]; then
 	read -s -p "Enter password : " password
 	egrep "opossum" /etc/passwd >/dev/null
@@ -139,8 +140,8 @@ fi
 cd /home/opossum
 wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
 wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
-chown -R opossum /home/opossum
-chown -R opossum /home/opossum/*
+#chown -R opossum /home/opossum
+#chown -R opossum /home/opossum/*
 chmod +x opossum.sh
 cd /root
 echo ""
