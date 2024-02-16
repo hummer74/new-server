@@ -2,12 +2,10 @@
 
 clear
 echo ""
-#chown opossum:opossum ~/opossum.7z
-7za x ~/opossum.7z -aoa
-rm ~/opossum.7z
+chown opossum:opossum opossum.7z
+7za x opossum.7z -aoa
+rm opossum.7z
 echo "Fix directory permissions"
-chmod 700 ~/.config/htop
-chmod 700 ~/.config/mc
 chmod 700 ~/.ssh
 echo ""
 echo "Fix all key permissions"
@@ -17,7 +15,6 @@ echo ""
 echo "Fix special files permissions"
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
-chmod 644 ~/.ssh/config
-chown -R opossum /home/opossum
-chown -R opossum /home/opossum/*
+#chown -R opossum /home/opossum
+#chown -R opossum /home/opossum/*
 echo ""
