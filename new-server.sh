@@ -91,15 +91,15 @@ systemctl enable fail2ban.service
  sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
  sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
 
-if grep --color "#allowipv6 = auto" /etc/sysctl.conf; then
-   sh -c "sed -i 's/#allowipv6 = auto/allowipv6 = auto/' /etc/fail2ban/fail2ban.conf
+if grep --color '#allowipv6 = auto' /etc/sysctl.conf; then
+   sh -c "sed -i 's/#allowipv6 = auto/allowipv6 = auto/" /etc/fail2ban/fail2ban.conf
 else
    echo "allowipv6 = AUTO now. It's OK."
 fi
 
 echo 'allowipv6 = auto' >> /etc/fail2ban/fail2ban.conf
 echo '[DEFAULT]' > /etc/fail2ban/jail.local
-echo 'ignoreip = 176.226.0.0 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 ' >> /etc/fail2ban/jail.local
+echo 'ignoreip = 176.226.0.0 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
