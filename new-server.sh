@@ -60,7 +60,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
-apt install mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales -y &&
+apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales -y &&
 
 egrep "sudo mc" ~/.profile >/dev/null
 	if [ $? -eq 0 ]; then
@@ -90,12 +90,22 @@ systemctl enable fail2ban.service
  sh -c "sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf"
  sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
  sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
+
+if grep --color "#allowipv6 = auto" /etc/sysctl.conf; then
+   sh -c "sed -i 's/#allowipv6 = auto/allowipv6 = auto/' /etc/fail2ban/fail2ban.conf
+else
+   echo "allowipv6 = AUTO now. It's OK."
+fi
+
+echo 'allowipv6 = auto' >> /etc/fail2ban/fail2ban.conf
 echo '[DEFAULT]' > /etc/fail2ban/jail.local
-echo 'ignoreip = 176.226.xxx.xxx 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 ' >> /etc/fail2ban/jail.local
+echo 'ignoreip = 176.226.0.0 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 ' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
+systemctl status fail2ban.service
 echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
+read  -p  "Press any key..."
 echo ""
 echo ""
 echo ""
