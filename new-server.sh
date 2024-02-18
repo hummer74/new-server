@@ -2,7 +2,7 @@
 
 echo "# Install all update."
 cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
-apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean &&
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean &&
 echo ""
 echo ""
 echo ""
@@ -90,16 +90,13 @@ systemctl enable fail2ban.service
  sh -c "sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf"
  sh -c "sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf"
  sh -c "sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf"
-
 if grep --color '#allowipv6 = auto' /etc/sysctl.conf; then
    sh -c "sed -i 's/#allowipv6 = auto/allowipv6 = auto/" /etc/fail2ban/fail2ban.conf
 else
    echo "allowipv6 = AUTO now. It's OK."
 fi
-
-echo 'allowipv6 = auto' >> /etc/fail2ban/fail2ban.conf
 echo '[DEFAULT]' > /etc/fail2ban/jail.local
-echo 'ignoreip = 176.226.0.0 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162' >> /etc/fail2ban/jail.local
+echo 'ignoreip = 176.226.0.0 176.56.1.165 95.215.8.184 45.86.86.195 38.114.100.162 46.29.239.23' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
@@ -166,6 +163,7 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    chmod +x up-xray.sh
    bash <(curl -Ls https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
 else
+    yn1='N'
     echo "Ok. Go to next point..."
 fi
 echo ""
@@ -182,6 +180,7 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    chmod +x up-3x-ui.sh
    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 else
+    yn1='N'
     echo "Ok. Go to next point..."
 fi
 echo ""
@@ -199,6 +198,7 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    systemctl restart wg-quick@wg0
    systemctl status wg-quick@wg0
 else
+    yn1='N'
     echo "Ok. Go to next point..."
 fi
 echo ""
@@ -213,14 +213,13 @@ if [[ "$yn1" =~ ^[yY]+$ ]]; then
    chmod +x up-openvpn.sh
    bash <(curl -Ls https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh)
 else
+    yn1='N'
     echo "Ok. Go to next point..."
 fi
 echo ""
 echo ""
 systemctl --failed
 read  -p  "Press any key..."
-systemctl reset-failed
-systemctl --failed
 echo ""
 echo ""
 echo ""
