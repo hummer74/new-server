@@ -147,15 +147,13 @@ fi
 cd /home/opossum
 wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
 wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
-#chown -R opossum /home/opossum
-#chown -R opossum /home/opossum/*
 chmod +x opossum.sh
 cd /root
 echo ""
 echo ""
 echo ""
 echo "Install VLESS, Xray-Reality."
-read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
+read -p "Do you want to proceed? (Y/N. Default [N].)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install VLESS, Xray-Reality."
    read  -p  "Press any key..."
@@ -171,7 +169,7 @@ echo ""
 echo ""
 echo "# Install 3X-UI."
 echo -e "\033[31m# Opossum, StandardPass, Port: 33900\033[0m."
-read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
+read -p "Do you want to proceed? (Y/N. Default [N].)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install 3X-UI."
    read  -p  "Press any key..."
@@ -183,11 +181,20 @@ else
     yn1='N'
     echo "Ok. Go to next point..."
 fi
+systemctl --failed
 echo ""
+read  -p  "Type server NAME for TOUCH...     " servname
+touch zzz-$servname
+echo ""
+echo ""
+echo ""
+echo -e "\033[31mLast update.\033[0m"
+read  -p  "Press any key..."
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean &&
 echo ""
 echo ""
 echo -e "# Install WireGuard, port \033[31m33901\033[0m."
-read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
+read -p "Do you want to proceed? (Y/N. Default [N].)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install WireGuard."
    read  -p  "Press any key..."
@@ -205,7 +212,7 @@ echo ""
 echo ""
 echo ""
 echo -e "# Install OpenVPN, port \033[31m33902\033[0m."
-read -p "Do you want to proceed? ([Y]es? Default [N]o.)" yn1
+read -p "Do you want to proceed? (Y/N. Default [N].)" yn1
 if [[ "$yn1" =~ ^[yY]+$ ]]; then
    echo "# Ok. Install OpenVPN."
    read  -p  "Press any key..."
@@ -218,20 +225,12 @@ else
 fi
 echo ""
 echo ""
-systemctl --failed
-read  -p  "Press any key..."
+read  -p  "Press any key for reboot..."
 echo ""
 echo ""
 echo ""
-read  -p  "Type server NAME for TOUCH...     " servname
-touch zzz-$servname
+echo "REBOOT"
 echo ""
 echo ""
 echo ""
-echo -e "\033[31mLast update and reboot...\033[0m"
-read  -p  "Press any key for last update and reboot..."
-apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
-echo ""
-echo ""
-echo "REBOOT..."
 reboot now
