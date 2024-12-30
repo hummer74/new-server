@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "# Install all update."
-cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
+# cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean &&
 echo ""
 echo ""
