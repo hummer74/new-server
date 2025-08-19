@@ -5,6 +5,8 @@ Just training.
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
 
 
-Наиль, тебе вот эта строка:
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
+Наиль, тебе вот эта строка. Всё, что внутри угловатых скобок, без них...
+
+{ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)" }
+
 
