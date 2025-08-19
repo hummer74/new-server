@@ -1,25 +1,25 @@
 #!/bin/bash
 
 echo "# Install all update."
-cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
-sudo apt clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean && sudo apt purge ~c -y
+sudo cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
+sudo apt-get clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -y && sudo apt-get full-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo apt-get purge ~c -y
 echo ""
 echo ""
 echo ""
 echo "# Disable ping and IPv6."
-echo "blacklist ipv6 " > /etc/modprobe.d/blacklist-ipv6.conf
+sudo echo "blacklist ipv6 " > /etc/modprobe.d/blacklist-ipv6.conf
 update-initramfs -u
 if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
    echo "Ping already blocked."
 else
    echo "Ping will be blocked now. It's OK."
-   echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+   sudo echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
 fi
 if grep --color 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf; then
    echo "IPv6 already blocked."
 else
    echo "IPv6 will be blocked now. It's OK."
-   echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+   sudo echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
 fi
    sysctl -p
 echo ""
@@ -41,7 +41,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
-sudo apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils -y
+sudo apt-get install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils -y
 
 egrep "sudo mc" ~/.profile >/dev/null
 	if [ $? -eq 0 ]; then
@@ -94,7 +94,7 @@ echo ""
 echo ""
 echo -e "\033[31mLast update.\033[0m"
 read  -p  "Press any key..."
-sudo apt clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean && sudo apt purge ~c -y
+sudo apt-get clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -y && sudo apt-get full-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo apt-get purge ~c -y
 echo ""
 echo ""
 echo ""
