@@ -1,8 +1,9 @@
 #!/bin/bash
 
 echo "# Install all update."
-sudo apt-get update -y 
-sudo apt-get clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -y && sudo apt-get full-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo apt-get purge ~c -y
+sudo dpkg --configure -a
+sudo apt update &&  sudo apt upgrade -y 
+sudo apt clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean && sudo apt purge ~c -y
 echo ""
 echo ""
 echo ""
@@ -41,7 +42,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
-sudo apt-get install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils -y
+sudo apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils -y
 
 egrep "sudo mc" ~/.profile >/dev/null
 	if [ $? -eq 0 ]; then
@@ -94,7 +95,7 @@ echo ""
 echo ""
 echo -e "\033[31mLast update.\033[0m"
 read  -p  "Press any key..."
-sudo apt-get clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -y && sudo apt-get full-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo apt-get purge ~c -y
+sudo apt clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean && sudo apt purge ~c -y
 echo ""
 echo ""
 echo ""
