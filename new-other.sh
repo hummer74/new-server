@@ -1,11 +1,7 @@
 #!/bin/bash
 
 echo "# Install all update."
-sudo rm /var/cache/apt/archives/lock
-sudo rm /var/lib/dpkg/lock*
-sudo dpkg --configure -a
 sudo apt-get update -y 
-sudo cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
 sudo apt-get clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -y && sudo apt-get full-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo apt-get purge ~c -y
 echo ""
 echo ""
