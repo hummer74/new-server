@@ -9,6 +9,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/ne
 
 
 Наиль, тебе вот эта строка. Внизу. Вся. Целиком...
+И прошу тебя, делай сервер на Debian-12. Проблем с ним меньше, надёжность и безопасность выше.
 
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
 
