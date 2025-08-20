@@ -81,7 +81,7 @@ echo 'ignoreip = 45.86.86.195 46.29.239.23 45.38.143.206' >> /etc/fail2ban/jail.
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
-echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
+echo -e "\033[31mDon't forget to add the new SSH port in the your SSH client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
 read  -p  "Press ENTER..."
 echo ""
@@ -112,4 +112,5 @@ echo "REBOOT"
 echo ""
 echo ""
 echo ""
-REBOOT
+reboot 
+
