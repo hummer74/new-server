@@ -8,7 +8,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/ne
 
 
 
-Наиль, тебе вот эта строка. Вся, целиком...
+Наиль, тебе вот эта строка. Внизу. Вся. Целиком...
 
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
 
