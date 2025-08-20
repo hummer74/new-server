@@ -1,8 +1,7 @@
 #!/bin/bash
 
 echo "# Install all update."
-sudo dpkg --configure -a
-sudo apt update &&  sudo apt upgrade -y 
+sudo dpkg --configure -a && sudo apt update &&  sudo apt upgrade -y &&
 sudo apt clean -y && sudo rm -rf /var/lib/apt/lists/* && sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean && sudo apt purge ~c -y
 echo ""
 echo ""
