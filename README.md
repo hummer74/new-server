@@ -3,12 +3,19 @@ YOU DON'T NEED THIS... I DON'T RECOMMEND IT.
 Just utility for rapid server customizing.
 
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)" .
+
 Можно проверять тут:
+
 rap.skcrtxr.com .
+
 get4click.ru .
+
 wcm.weborama-tech.ru .
+
 cdn.uxfeedback.ru .
+
 api.expf.ru .
+
 eye.targetads.io .
 
 
