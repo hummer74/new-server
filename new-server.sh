@@ -95,7 +95,7 @@ else
    echo "allowipv6 = AUTO now. It's OK."
 fi
 echo '[DEFAULT]' > /etc/fail2ban/jail.local
-echo 'ignoreip = 176.226.0.0 176.56.1.165 45.86.86.195 46.29.239.23 38.114.100.162' >> /etc/fail2ban/jail.local
+echo 'ignoreip = 176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.38.143.206' >> /etc/fail2ban/jail.local
 cat /etc/fail2ban/jail.local
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
@@ -153,7 +153,7 @@ echo ""
 echo ""
 systemctl --failed
 echo ""
-touch zzz-$newhostname
+touch zzz_$newhostname
 echo ""
 echo ""
 echo -e "\033[31mLast update.\033[0m"
