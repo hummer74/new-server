@@ -60,7 +60,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
-apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl -y &&
+apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg -y &&
 egrep "sudo mc" ~/.profile >/dev/null
 if [ $? -eq 0 ]; then
    echo "Midnight Commander exists!"
