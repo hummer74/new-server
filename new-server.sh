@@ -117,6 +117,9 @@ echo "Fix special files permissions"
 chmod 644 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
+echo ""
+chmod +x ~/auto-update.sh
+
 # WARNING: Ensure ~/.ssh/passwd.txt contains line "username:password"
 if [ -f ~/.ssh/passwd.txt ]; then
    chpasswd < ~/.ssh/passwd.txt
@@ -257,7 +260,19 @@ else
     echo "Ok. No additional services will be installed."
 fi
 # ===== End of additional services block =====
+echo ""
 
+# Устанавливаем новые задания cron, полностью заменяя текущий crontab
+crontab - <<EOF
+@reboot 		date >> /root/reboot.log
+* * * * *       systemctl reset-failed
+0 1 * * *       /root/auto-update.sh
+0 0 1 * * 		date > /root/reboot.log
+EOF
+
+echo "Crontab успешно обновлён."
+echo ""
+echo ""
 echo ""
 echo -e "\033[31mLast update.\033[0m"
 read -n1 -s -r -p "Press any key..."; echo
