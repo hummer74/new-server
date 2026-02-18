@@ -71,18 +71,12 @@ echo ""
 echo ""
 sysctl --system
 
-# Настройка UFW (файрвол) – только добавляем правила, но не включаем
-echo "Adding UFW rules for SSH ports 22 and 24940 (UFW is not enabled automatically)."
-ufw allow 22/tcp
-ufw allow 24940/tcp
-echo "UFW rules added. To enable firewall later, run: sudo ufw enable"
-
 # Настройка Fail2ban
 systemctl enable fail2ban.service
 sed -i 's/\s\s*/ /g' /etc/fail2ban/jail.conf
-sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf
-sed -i 's/findtime = 10m/findtime = 60m/' /etc/fail2ban/jail.conf
-sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.conf
+sed -i 's/bantime = 10m/bantime = 1440m/' /etc/fail2ban/jail.conf
+sed -i 's/findtime = 10m/findtime = 90m/' /etc/fail2ban/jail.conf
+sed -i 's/maxretry = 5/maxretry = 2/' /etc/fail2ban/jail.conf
 if grep --color '#allowipv6 = auto' /etc/fail2ban/fail2ban.conf; then
    sed -i 's/#allowipv6 = auto/allowipv6 = auto/' /etc/fail2ban/fail2ban.conf
 else
@@ -167,6 +161,7 @@ echo ""
 echo ""
 systemctl --failed
 echo ""
+systemctl reset-failed
 read -p "Type server NAME for TOUCH: " servname
 touch zzz-$servname
 echo ""
@@ -174,6 +169,24 @@ echo ""
 echo ""
 echo ""
 echo ""
+
+# Настройка UFW (файрвол) – добавляем правила и спрашиваем о включении
+echo "Configuring UFW firewall..."
+# Добавляем правила для SSH портов
+ufw allow 22/tcp
+ufw allow 24940/tcp
+echo "SSH ports 22 and 24940 are allowed."
+# Интерактивный запрос на включение
+read -p "Do you want to enable UFW now? (y/N): " enable_ufw
+if [[ "$enable_ufw" =~ ^[Yy]$ ]]; then
+    echo "Enabling UFW..."
+    ufw --force enable
+    echo "UFW is now enabled and active."
+    ufw status verbose
+else
+    echo "UFW rules have been added but the firewall is not enabled."
+    echo "You can enable it later with: sudo ufw enable"
+fi
 
 # ===== Additional services block =====
 echo -e "\033[31mDo you want to install additional services (Xray, 3X-UI, WireGuard, OpenVPN)?\033[0m"
@@ -254,6 +267,14 @@ echo ""
 echo ""
 echo ""
 echo "REBOOT"
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
 echo ""
 echo ""
 echo ""
