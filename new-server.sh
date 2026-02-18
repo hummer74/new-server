@@ -1,7 +1,6 @@
 #!/bin/bash
 
 echo "# Install all update."
-# cat /usr/share/doc/apt/examples/sources.list > /etc/apt/sources.list
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 echo ""
 echo ""
@@ -10,9 +9,6 @@ echo -e "\033[31m# Change PRETTY hostname!!!\033[0m"
 read -n1 -s -r -p "Press any key..."; echo
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname "$newhostname" --pretty
-#read -p "Type new STATIC hostname here: " newhostname1
-#hostnamectl set-hostname $newhostname1
-#hostnamectl
 echo ""
 echo ""
 echo ""
@@ -35,31 +31,21 @@ sysctl -p
 echo ""
 echo ""
 echo ""
-echo -e "\033[31m# Change SSH port to 24940.\033[0m"
+echo -e "\033[31m# Configure SSH to listen on ports 22 and 24940.\033[0m"
 read -n1 -s -r -p "Press any key..."; echo
-grep --color '#Port ' /etc/ssh/sshd_config
-sed -i 's/#Port /Port /' /etc/ssh/sshd_config
-grep --color 'Port ' /etc/ssh/sshd_config; read -p "Current SSH port : " search
-read -p "New (desired) SSH port : " replace
-sed -i "s/Port $search/Port $replace/" /etc/ssh/sshd_config
-echo ""
-echo ""
-echo ""
-grep --color 'PermitRootLogin yes' /etc/ssh/sshd_config
-sed -i 's/PermitRootLogin yes/PermitRootLogin without-password/' /etc/ssh/sshd_config
-grep --color 'PermitRootLogin without-password' /etc/ssh/sshd_config
-grep --color '#PubkeyAuthentication yes' /etc/ssh/sshd_config
-sed -i 's/#PubkeyAuthentication/PubkeyAuthentication/' /etc/ssh/sshd_config
-grep --color 'PubkeyAuthentication yes' /etc/ssh/sshd_config
-echo ""
-echo ""
-echo ""
+# Удаляем все существующие директивы Port и добавляем две нужные
+sed -i '/^Port /d' /etc/ssh/sshd_config
+echo "Port 22" >> /etc/ssh/sshd_config
+echo "Port 24940" >> /etc/ssh/sshd_config
+# Разрешаем root-доступ только по ключам
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
+sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 systemctl restart ssh
 systemctl status ssh
 echo ""
 echo ""
 echo ""
-echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban."
+echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw."
 apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg sudo ufw -y &&
 egrep "sudo mc" ~/.profile >/dev/null
 if [ $? -eq 0 ]; then
@@ -68,7 +54,6 @@ else
    echo "screen -r" >> ~/.profile
    echo "sudo mc" >> ~/.profile
 fi
-
 echo ""
 echo ""
 echo ""
@@ -85,6 +70,14 @@ echo ""
 echo ""
 echo ""
 sysctl --system
+
+# Настройка UFW (файрвол) – только добавляем правила, но не включаем
+echo "Adding UFW rules for SSH ports 22 and 24940 (UFW is not enabled automatically)."
+ufw allow 22/tcp
+ufw allow 24940/tcp
+echo "UFW rules added. To enable firewall later, run: sudo ufw enable"
+
+# Настройка Fail2ban
 systemctl enable fail2ban.service
 sed -i 's/\s\s*/ /g' /etc/fail2ban/jail.conf
 sed -i 's/bantime = 10m/bantime = 600m/' /etc/fail2ban/jail.conf
@@ -95,12 +88,18 @@ if grep --color '#allowipv6 = auto' /etc/fail2ban/fail2ban.conf; then
 else
    echo "allowipv6 = AUTO now. It's OK."
 fi
-echo '[DEFAULT]' > /etc/fail2ban/jail.local
-echo 'ignoreip = 176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.38.143.206 193.233.203.194 194.58.68.23' >> /etc/fail2ban/jail.local
-cat /etc/fail2ban/jail.local
+# Создаём jail.local с ignoreip и секцией для sshd с обоими портами
+cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+ignoreip = 176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.38.143.206 193.233.203.194 194.58.68.23
+
+[sshd]
+enabled = true
+port = 22,24940
+EOF
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
-echo -e "\033[31mDon't forget to add the new SSH port in the client!\033[0m"
+echo -e "\033[31mDon't forget to add the new SSH port (24940) in the client!\033[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
 read -n1 -s -r -p "Press any key..."; echo
 echo ""
@@ -217,7 +216,6 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install WireGuard."
         read -n1 -s -r -p "Press any key..."; echo
         bash <(curl -Ls https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh)
-        # After installation, ask for interface name (default wg0)
         read -p "Enter WireGuard interface name (default wg0): " wg_iface
         wg_iface=${wg_iface:-wg0}
         sysctl --system
