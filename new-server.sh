@@ -167,7 +167,7 @@ echo ""
 echo ""
 systemctl --failed
 echo ""
-read -p "Type server NAME for TOUCH... " servname
+read -p "Type server NAME for TOUCH: " servname
 touch zzz-$servname
 echo ""
 echo ""
