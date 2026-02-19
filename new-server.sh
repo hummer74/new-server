@@ -41,8 +41,8 @@ echo "Port 24940" >> /etc/ssh/sshd_config
 # Разрешаем root-доступ только по ключам
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart ssh
-systemctl status ssh
+# systemctl restart ssh
+# systemctl status ssh
 echo ""
 echo ""
 echo ""
