@@ -12,7 +12,7 @@ apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade
 echo ""
 echo ""
 echo ""
-echo -e "\033[33m# Change PRETTY hostname!!!\033[0m"
+printf "\033[33m# Change PRETTY hostname!!!\033[0m\n"
 read -n1 -s -r -p "Press any key..."; echo
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname "$newhostname" --pretty
@@ -38,7 +38,7 @@ sysctl -p
 echo ""
 echo ""
 echo ""
-echo -e "\033[33m# Configure SSH to listen on ports 22 and 24940.\033[0m"
+printf "\033[33m# Configure SSH to listen on ports 22 and 24940.\033[0m\n"
 read -n1 -s -r -p "Press any key..."; echo
 # Удаляем все существующие директивы Port и добавляем две нужные
 sed -i '/^Port /d' /etc/ssh/sshd_config
@@ -148,7 +148,7 @@ port = 22,24940
 EOF
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
-echo -e "\033[33mDon't forget to add the new SSH port (24940) in the client!\033[0m"
+printf "\033[33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
 grep --color 'Port ' /etc/ssh/sshd_config
 read -n1 -s -r -p "Press any key..."; echo
 echo ""
@@ -162,7 +162,7 @@ if [ ! -f setup.7z ]; then
     exit 1
 fi
 
-echo -e "\033[33m# Copy /root/.dir from archive.pass.\033[0m"
+printf "\033[33m# Copy /root/.dir from archive.pass.\033[0m\n"
 read -n1 -s -r -p "Press any key..."; echo
 7za x setup.7z -aoa
 rm setup.7z
@@ -198,7 +198,7 @@ echo ""
 echo ""
 
 # Правка 3: улучшенное создание пользователя opossum
-echo -e "\033[33m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
+printf "\033[33m# Add ordinary user OPOSSUM with PASSWORD!\033[0m\n"
 userdel -r opossum 2>/dev/null
 if [ $(id -u) -eq 0 ]; then
     read -s -p "Enter password for user opossum: " password
@@ -265,7 +265,7 @@ else
 fi
 
 # ===== Additional services block =====
-echo -e "\033[33mDo you want to install additional services (Xray, 3X-UI, WireGuard, OpenVPN)?\033[0m"
+printf "\033[33m# Do you want to install additional services (Xray, 3X-UI, WireGuard, OpenVPN)?\033[0m\n"
 read -p "Proceed? (Y/N. Default [N]): " install_extra
 if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo "# Ok. Proceeding with additional services installation."
@@ -286,7 +286,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     # 3X-UI
     echo "# Install 3X-UI."
-    echo -e "\033[33m# Opossum, StandardPass, Port: 33900\033[0m."
+    printf "\033[33m# Opossum, StandardPass, Port: 33900\033[0m.\n"
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install 3X-UI."
@@ -299,7 +299,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     echo ""
     # WireGuard
-    echo -e "# Install WireGuard, port \033[33m33901\033[0m."
+    printf "# Install WireGuard, port \033[33m33901\033[0m.\n"
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install WireGuard."
@@ -317,7 +317,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     echo ""
     # OpenVPN
-    echo -e "# Install OpenVPN, port \033[33m33902\033[0m."
+    printf "# Install OpenVPN, port \033[33m33902\033[0m.\n"
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install OpenVPN."
@@ -347,7 +347,7 @@ echo "Crontab успешно обновлён."
 echo ""
 echo ""
 echo ""
-echo -e "\033[33mLast update.\033[0m"
+printf "\033[33mLast update.\033[0m\n"
 read -n1 -s -r -p "Press any key..."; echo
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 read -n1 -s -r -p "Press any key for reboot..."; echo
