@@ -166,8 +166,9 @@ echo ""
 systemctl --failed
 echo ""
 systemctl reset-failed
-read -p "Type server NAME for TOUCH: " servname
-touch zzz-$servname
+# Автоматическое создание файла с pretty hostname
+safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+touch "zzz-$safe_name"
 echo ""
 echo ""
 echo ""
