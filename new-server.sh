@@ -48,8 +48,45 @@ echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw."
 apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg -y &&
-egrep "sudo mc" ~/.profile >/dev/null
-if [ $? -eq 0 ]; then
+
+# Настройка unattended-upgrades (автоматические обновления безопасности)
+echo ""
+echo "# Configuring unattended-upgrades..."
+echo ""
+
+# Основные параметры периодичности
+cat > /etc/apt/apt.conf.d/20auto-upgrades <<EOF
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+
+# Разрешаем только обновления безопасности (и ESM, если есть)
+cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
+Unattended-Upgrade::Allowed-Origins {
+    "\${distro_id}:\${distro_codename}-security";
+    "\${distro_id}ESMApps:\${distro_codename}-apps-security";
+    "\${distro_id}ESM:\${distro_codename}-infra-security";
+};
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailOnlyOnError "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "00:01";
+EOF
+
+# Включаем и запускаем службу (хотя она уже может быть активна)
+systemctl enable unattended-upgrades
+systemctl restart unattended-upgrades
+
+echo "Unattended-upgrades configured."
+echo ""
+
+if grep -q "sudo mc" ~/.profile; then
    echo "Midnight Commander exists!"
 else
    echo "screen -r" >> ~/.profile
