@@ -41,13 +41,13 @@ echo "Port 24940" >> /etc/ssh/sshd_config
 # Разрешаем root-доступ только по ключам
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-# systemctl restart ssh
-# systemctl status ssh
+#systemctl restart ssh
+#systemctl status ssh
 echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw."
-apt install rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg sudo ufw -y &&
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg -y &&
 egrep "sudo mc" ~/.profile >/dev/null
 if [ $? -eq 0 ]; then
    echo "Midnight Commander exists!"
@@ -265,10 +265,10 @@ echo ""
 
 # Устанавливаем новые задания cron, полностью заменяя текущий crontab
 crontab - <<EOF
-@reboot      date >> /root/reboot.log
-* * * * *      systemctl reset-failed
-0 1 * * *      /root/auto-update.sh
-0 0 1 * *      date > /root/reboot.log
+@reboot 		date >> /root/reboot.log
+* * * * *       systemctl reset-failed
+0 1 * * *       /root/auto-update.sh
+0 0 1 * * 		date > /root/reboot.log
 EOF
 
 echo "Crontab успешно обновлён."
