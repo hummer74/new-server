@@ -264,10 +264,10 @@ echo ""
 
 # Устанавливаем новые задания cron, полностью заменяя текущий crontab
 crontab - <<EOF
-@reboot 		date >> /root/reboot.log
-* * * * *       systemctl reset-failed
-0 1 * * *       /root/auto-update.sh
-0 0 1 * * 		date > /root/reboot.log
+@reboot      date >> /root/reboot.log
+* * * * *      systemctl reset-failed
+0 1 * * *      /root/auto-update.sh
+0 0 1 * *      date > /root/reboot.log
 EOF
 
 echo "Crontab успешно обновлён."
