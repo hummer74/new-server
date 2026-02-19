@@ -1,12 +1,18 @@
 #!/bin/bash
 
+# Правка 1: проверка запуска от root
+if [ "$EUID" -ne 0 ]; then
+    echo "Этот скрипт должен запускаться от root"
+    exit 1
+fi
+
 echo "# Install all update."
 dpkg --configure -a
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 echo ""
 echo ""
 echo ""
-echo -e "\033[31m# Change PRETTY hostname!!!\033[0m"
+echo -e "\032[31m# Change PRETTY hostname!!!\032[0m"
 read -n1 -s -r -p "Press any key..."; echo
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname "$newhostname" --pretty
@@ -32,7 +38,7 @@ sysctl -p
 echo ""
 echo ""
 echo ""
-echo -e "\033[31m# Configure SSH to listen on ports 22 and 24940.\033[0m"
+echo -e "\032[31m# Configure SSH to listen on ports 22 and 24940.\032[0m"
 read -n1 -s -r -p "Press any key..."; echo
 # Удаляем все существующие директивы Port и добавляем две нужные
 sed -i '/^Port /d' /etc/ssh/sshd_config
@@ -86,11 +92,22 @@ systemctl restart unattended-upgrades
 echo "Unattended-upgrades configured."
 echo ""
 
-if grep -q "sudo mc" ~/.profile; then
-   echo "Midnight Commander exists!"
+# Правка 2: улучшенное добавление команд в ~/.profile
+if ! grep -q "screen -ls | grep -q" ~/.profile; then
+    cat >> ~/.profile << 'EOF'
+
+# Подключение к screen, если есть отсоединённая сессия
+if screen -ls | grep -q "Detached"; then
+    screen -r 2>/dev/null
+fi
+
+# Запуск mc после небольшой задержки
+sleep 2
+sudo mc 2>/dev/null
+EOF
+    echo "Улучшенные команды добавлены в ~/.profile"
 else
-   echo "screen -r" >> ~/.profile
-   echo "sudo mc" >> ~/.profile
+    echo "Улучшенные команды уже есть в ~/.profile"
 fi
 echo ""
 echo ""
@@ -131,14 +148,21 @@ port = 22,24940
 EOF
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
-echo -e "\033[31mDon't forget to add the new SSH port (24940) in the client!\033[0m"
+echo -e "\032[31mDon't forget to add the new SSH port (24940) in the client!\032[0m"
 grep --color 'Port ' /etc/ssh/sshd_config
 read -n1 -s -r -p "Press any key..."; echo
 echo ""
 echo ""
 echo ""
+
+# Правка 4: проверка успешности загрузки setup.7z
 wget -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z
-echo -e "\033[31m# Copy /root/.dir from archive.pass.\033[0m"
+if [ ! -f setup.7z ]; then
+    echo "Ошибка: не удалось загрузить setup.7z"
+    exit 1
+fi
+
+echo -e "\032[31m# Copy /root/.dir from archive.pass.\032[0m"
 read -n1 -s -r -p "Press any key..."; echo
 7za x setup.7z -aoa
 rm setup.7z
@@ -152,11 +176,16 @@ chmod 600 ~/.ssh/*
 chmod 644 ~/.ssh/*.pub
 echo ""
 echo "Fix special files permissions"
-chmod 644 ~/.ssh/authorized_keys
+# Правка 5: authorized_keys должен быть 600
+chmod 600 ~/.ssh/authorized_keys
 chmod 644 ~/.ssh/known_hosts
 chmod 644 ~/.ssh/config
 echo ""
-chmod +x ~/auto-update.sh
+
+# Правка 6: проверка наличия auto-update.sh перед установкой прав
+if [ -f ~/auto-update.sh ]; then
+    chmod +x ~/auto-update.sh
+fi
 
 # WARNING: Ensure ~/.ssh/passwd.txt contains line "username:password"
 if [ -f ~/.ssh/passwd.txt ]; then
@@ -167,35 +196,40 @@ fi
 echo ""
 echo ""
 echo ""
-echo -e "\033[31m# Add ordinary user OPOSSUM with PASSWORD!\033[0m"
+
+# Правка 3: улучшенное создание пользователя opossum
+echo -e "\032[31m# Add ordinary user OPOSSUM with PASSWORD!\032[0m"
 userdel -r opossum 2>/dev/null
 if [ $(id -u) -eq 0 ]; then
-   read -s -p "Enter password : " password
-   echo
-   egrep "opossum" /etc/passwd >/dev/null
-   if [ $? -eq 0 ]; then
-      echo "opossum exists!"
-   else
-      pass=$(openssl passwd -6 "$password")
-      useradd -m -p "$pass" "opossum"
-      if [ $? -eq 0 ]; then
-         echo "User opossum has been added to system!"
-         usermod -a -G sudo opossum
-      else
-         echo "Failed to add a user!"
-      fi
-   fi
+    read -s -p "Enter password for user opossum: " password
+    echo
+    if grep -q "^opossum:" /etc/passwd; then
+        echo "opossum already exists!"
+    else
+        pass=$(openssl passwd -6 "$password")
+        useradd -m -p "$pass" opossum
+        if [ $? -eq 0 ]; then
+            echo "User opossum added to system!"
+            usermod -aG sudo opossum
+        else
+            echo "Failed to add user!"
+        fi
+    fi
+    unset password
 else
-   echo "Only root may add a user to the system."
+    echo "Only root may add a user to the system."
 fi
+
+# Загрузка файлов для пользователя opossum и смена владельца
 if [ -d /home/opossum ]; then
-   cd /home/opossum
-   wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
-   wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
-   chmod +x opossum.sh
-   cd /root
+    cd /home/opossum
+    wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
+    wget -O opossum.sh https://raw.githubusercontent.com/hummer74/new-server/main/opossum.sh
+    chmod +x opossum.sh
+    chown -R opossum:opossum /home/opossum
+    cd /root
 else
-   echo "Home directory for opossum not found, skipping downloads."
+    echo "Home directory for opossum not found, skipping downloads."
 fi
 echo ""
 echo ""
@@ -231,7 +265,7 @@ else
 fi
 
 # ===== Additional services block =====
-echo -e "\033[31mDo you want to install additional services (Xray, 3X-UI, WireGuard, OpenVPN)?\033[0m"
+echo -e "\032[31mDo you want to install additional services (Xray, 3X-UI, WireGuard, OpenVPN)?\032[0m"
 read -p "Proceed? (Y/N. Default [N]): " install_extra
 if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo "# Ok. Proceeding with additional services installation."
@@ -252,7 +286,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     # 3X-UI
     echo "# Install 3X-UI."
-    echo -e "\033[31m# Opossum, StandardPass, Port: 33900\033[0m."
+    echo -e "\032[31m# Opossum, StandardPass, Port: 33900\032[0m."
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install 3X-UI."
@@ -265,7 +299,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     echo ""
     # WireGuard
-    echo -e "# Install WireGuard, port \033[31m33901\033[0m."
+    echo -e "# Install WireGuard, port \032[31m33901\032[0m."
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install WireGuard."
@@ -283,7 +317,7 @@ if [[ "$install_extra" =~ ^[yY]+$ ]]; then
     echo ""
     echo ""
     # OpenVPN
-    echo -e "# Install OpenVPN, port \033[31m33902\033[0m."
+    echo -e "# Install OpenVPN, port \032[31m33902\032[0m."
     read -p "Do you want to proceed? (Y/N. Default [N]): " yn1
     if [[ "$yn1" =~ ^[yY]+$ ]]; then
         echo "# Ok. Install OpenVPN."
@@ -313,7 +347,7 @@ echo "Crontab успешно обновлён."
 echo ""
 echo ""
 echo ""
-echo -e "\033[31mLast update.\033[0m"
+echo -e "\032[31mLast update.\032[0m"
 read -n1 -s -r -p "Press any key..."; echo
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 read -n1 -s -r -p "Press any key for reboot..."; echo
