@@ -219,10 +219,11 @@ EOF
 # Create jail.local with main settings (do not touch jail.conf)
 cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
-bantime = 7d
-findtime = 120m
-maxretry = 4
-ignoreip = 127.0.0.1 192.168.0.0/16
+bantime = 1440m
+findtime = 90m
+maxretry = 2
+ignoreip = 176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.38.143.206 176.125.243.194 194.58.68.23
+
 [sshd]
 enabled = true
 port = 22,24940
