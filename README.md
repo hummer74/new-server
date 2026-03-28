@@ -28,7 +28,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
 ```
 
-### ⚠️ Для быстрой настройки НОВОГО(!) Debian 11/12 сервера (only for hummer74, не надо вам этого):
+### ⚠️ Оnly for hummer74 (поверьте, не надо вам этого):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
 ```
