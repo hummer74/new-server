@@ -8,15 +8,28 @@
 
 **Просто скопируйте одну из строк ниже и вставьте её в терминал на вашем сервере:**
 
-### Для установки MTProto:
+### Для установки MTProto (Telegram Proxy):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-install.sh)"
 ```
 
-### Для удаления MTProto:
+### Для удаления MTProto и отката сервера к исходному состоянию:
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
 ```
+
+**Ниже - скрипты для тех, кто понимает что делает:**
+
+### Для быстрой настройки Debian сервера (общедоступно):
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
+```
+
+### Для быстрой настройки Debian сервера (only for hummer74, не надо вам этого):
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
+```
+
 
 ## 🚀 Как это работает
 
@@ -36,8 +49,6 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 |---------|----------|
 | `telemt-install.sh` | Установка MTProto (Telegram Proxy) |
 | `telemt-uninstall.sh` | Удаление MTProto и всех связанных компонентов |
-| `new-server.sh` | Установка нового сервера |
-| `new-other.sh` | Альтернативная установка для других пользователей |
 
 ## ⚙️ Требования
 
@@ -45,20 +56,10 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 - Root права или sudo доступ
 - Подключение к интернету (для скачивания зависимостей)
 
-## 🛠️ Использование через startinstall.sh
-
-Для более удобной установки можно использовать `startinstall.sh`:
-
-```bash
-bash startinstall.sh
-```
-
-Этот скрипт предложит вам выбрать тип установки и проведёт вас по шагам.
-
 ## ⚠️ Важные примечания
 
 - **Бэкап**: Перед установкой рекомендуется сделать резервную копию важных данных
-- **Root права**: Некоторые операции требуют root прав — используйте `sudo` или подключайтесь как root
+- **Root права**: Операции требуют root прав — используйте `sudo` или подключайтесь как root
 - **Интернет**: Скрипт требует подключение к интернету для скачивания зависимостей
 - **Поддержка**: При возникновении проблем проверьте логи в `/var/log/`
 
