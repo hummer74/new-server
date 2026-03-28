@@ -23,12 +23,12 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 ## ⚠️ ВАЖНО!!! ОПАСНО!!! 
 ## Ниже - скрипты для тех, кто уже понимает что делает: 
 
-### ⚠️ Для быстрой настройки Debian 11/12 сервера (общедоступно):
+### ⚠️ Для быстрой настройки НОВОГО(!) Debian 11/12 сервера (общедоступно):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
 ```
 
-### ⚠️ Для быстрой настройки Debian 11/12 сервера (only for hummer74, не надо вам этого):
+### ⚠️ Для быстрой настройки НОВОГО(!) Debian 11/12 сервера (only for hummer74, не надо вам этого):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
 ```
