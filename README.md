@@ -1,8 +1,10 @@
-# MTProto VPN Установка и Удаление
+# Автоматическая установка и удаление MTProto (Telegram Proxy)
 
 ## 📖 Описание
 
-Этот репозиторий содержит скрипты для автоматической установки и удаления MTProto (Telegram Proxy) на сервере. Скрипты автоматически настраивают все необходимые компоненты без необходимости ручной конфигурации.
+Этот репозиторий содержит скрипты для автоматической установки и удаления MTProto (Telegram Proxy)
+Тестировалось на серверах Debian 11/12 (!). 
+Скрипты автоматически настраивают все необходимые компоненты без необходимости ручной конфигурации.
 
 ## ⚡ Быстрая установка
 
@@ -18,14 +20,15 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
 ```
 
-## ⚠️ ВАЖНО!!! ОПАСНО!!! Ниже - скрипты для тех, кто понимает что делает: ⚠️ 
+## ⚠️ ВАЖНО!!! ОПАСНО!!! 
+## Ниже - скрипты для тех, кто уже понимает что делает: 
 
-### Для быстрой настройки Debian сервера (общедоступно):
+### ⚠️ Для быстрой настройки Debian 11/12 сервера (общедоступно):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
 ```
 
-### Для быстрой настройки Debian сервера (only for hummer74, не надо вам этого):
+### ⚠️ Для быстрой настройки Debian 11/12 сервера (only for hummer74, не надо вам этого):
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
 ```
