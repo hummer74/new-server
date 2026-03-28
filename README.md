@@ -20,7 +20,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
 ```
 
-## ⚠️ ВАЖНО!!! ОПАСНО!!! 
+## ⚠️ ВАЖНО!!! ОПАСНО!!! НУЖНО НЕ ВСЕМ!!!
 ## Ниже - скрипты для тех, кто уже понимает что делает: 
 
 ### ⚠️ Для быстрой настройки НОВОГО(!) Debian 11/12 сервера (общедоступно):
