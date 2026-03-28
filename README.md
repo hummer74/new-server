@@ -18,7 +18,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
 ```
 
-**Ниже - скрипты для тех, кто понимает что делает:**
+## ⚠️ ВАЖНО!!! ОПАСНО!!! Ниже - скрипты для тех, кто понимает что делает: ⚠️ 
 
 ### Для быстрой настройки Debian сервера (общедоступно):
 ```bash
@@ -69,7 +69,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/ne
 1. Проверьте логи установки
 2. Убедитесь, что у вас есть root права
 3. Проверьте подключение к интернету
-
+4. Если с вашей точки зрения всё нормально и косяк в скриптах - идите нахрен. Правьте скрипты сами, это доступно.
 ---
 
 **Автор**: hummer74  
