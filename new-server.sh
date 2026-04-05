@@ -359,7 +359,7 @@ cat > docker-compose.yml <<EOF
 version: '3.3'
 services:
   telemt:
-    image: raylabpro/telemt:debian
+    image: whn0thacked/telemt-docker:latest
     container_name: telemt
     restart: unless-stopped
     ports:
