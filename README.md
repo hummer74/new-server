@@ -20,6 +20,11 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/te
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
 ```
 
+### Для обновления установленнго MTProto (Telegram Proxy):
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-update.sh)"
+```
+
 ## ⚠️ ВАЖНО!!! ОПАСНО!!! НУЖНО НЕ ВСЕМ!!!
 ## Ниже - скрипты для тех, кто уже понимает что делает: 
 
