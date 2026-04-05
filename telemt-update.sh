@@ -4,12 +4,12 @@ set -euo pipefail
 # ==============================================
 # Telemt update script (whn0thacked/telemt-docker:latest)
 # For installation in /etc/telemt-docker
-# Logs: /var/log/telemt-update.log
+# Logs: /root/telemt-update.log
 # ==============================================
 
 PROJECT_DIR="/etc/telemt-docker"
-LOG_FILE="/var/log/telemt-update.log"
-MAX_LOG_LINES=1000
+LOG_FILE="/root/telemt-update.log"
+MAX_LOG_LINES=600
 
 # Determine docker-compose command
 if command -v docker-compose >/dev/null; then

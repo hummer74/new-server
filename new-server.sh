@@ -405,6 +405,8 @@ crontab - <<EOF
 * * * * *	systemctl reset-failed
 0 1 * * *	/root/auto-update.sh
 0 0 1 * *	date > /root/reboot.log
+0 */1 * * *	/root/telemt-update.sh
+
 EOF
 
 echo "Crontab successfully updated."
