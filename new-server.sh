@@ -33,8 +33,8 @@ fi
 # Create new swap file of 512 MB
 SWAP_FILE="/swapfile"
 SWAP_SIZE_MB=512
-echo "Creating $SWAP_FILE of size \${SWAP_SIZE_MB} MB..."
-if fallocate -l "\${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null; then
+echo "Creating $SWAP_FILE of size ${SWAP_SIZE_MB} MB..."
+if fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null; then
     echo "Using fallocate."
 else
     echo "fallocate not supported, using dd..."
@@ -58,22 +58,112 @@ hostnamectl set-hostname "$newhostname" --pretty
 echo ""
 echo ""
 echo ""
-echo "# Disable ping and IPv6."
-echo "blacklist ipv6" > /etc/modprobe.d/blacklist-ipv6.conf
-update-initramfs -u
-if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
-   echo "Ping already blocked."
-else
-   echo "Ping will be blocked now. It's OK."
-   echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+
+# --- Configure IPv6 outgoing (in-IPv4, out-IPv6) BEFORE disabling IPv6 ---
+ENABLE_IPV6_OUTGOING="no"
+printf "\\033[33m# Настроить исходящий IPv6? (не на всех серверах доступно)\\033[0m\\n"
+read -p "Включить исходящий IPv6 (in-IPv4, out-IPv6)? (y/N): " enable_ip6out
+if [[ "$enable_ip6out" =~ ^[Yy]$ ]]; then
+    ENABLE_IPV6_OUTGOING="yes"
+    BACKUP_DIR="/root/ip6out-backup"
+    mkdir -p "$BACKUP_DIR"
+
+    IFACE=$(ip route show default | awk '/default/ {print $5}' | head -1)
+    if [ -z "$IFACE" ]; then
+        echo "Ошибка: не удалось определить сетевой интерфейс. Пропуск настройки IPv6."
+    else
+        echo "Настраиваем исходящий IPv6 на интерфейсе $IFACE..."
+
+        # Backup current state
+        cp /etc/iproute2/rt_tables "$BACKUP_DIR/rt_tables.bak" 2>/dev/null || true
+        ip6tables-save > "$BACKUP_DIR/ip6tables.bak" 2>/dev/null || true
+        ip rule show > "$BACKUP_DIR/ip-rules.bak" 2>/dev/null || true
+        ip -6 rule show > "$BACKUP_DIR/ip6-rules.bak" 2>/dev/null || true
+
+        # Test IPv6 connectivity before applying policy routing
+        if ! ip -6 addr show scope global dev "$IFACE" 2>/dev/null | grep -q "inet6"; then
+            echo "Ошибка: нет глобального IPv6-адреса на $IFACE. Исходящий IPv6 не будет работать."
+            echo "Пропуск настройки IPv6."
+        elif ! ping6 -c 2 -W 3 2001:4860:4860::8888 >/dev/null 2>&1; then
+            echo ""
+            echo "============================================"
+            echo " ОШИБКА: проверка IPv6 не пройдена."
+            echo " Провайдер блокирует исходящий IPv6."
+            echo " Обратитесь в поддержку хостинга."
+            echo "============================================"
+            echo "Пропуск настройки IPv6."
+        else
+            echo "Проверка IPv6: OK."
+
+            # Policy routing: create ipv6out table and rule
+            grep -q "200.*ipv6out" /etc/iproute2/rt_tables || echo "200 ipv6out" >> /etc/iproute2/rt_tables
+            ip -6 route flush table ipv6out 2>/dev/null || true
+            IPV6_GW=$(ip -6 route show default | awk '{print $3}' | head -1)
+            if [ -n "$IPV6_GW" ]; then
+                ip -6 route add default via "$IPV6_GW" dev "$IFACE" table ipv6out
+                ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
+                echo "Policy routing настроен. IPv6 gateway: $IPV6_GW"
+            else
+                echo "Внимание: IPv6 gateway не найден. Policy routing не настроен."
+                echo "После перезагрузки или появления IPv6 запустите: /root/ip6out-install.sh"
+            fi
+
+            # Disable IPv6 ping (echo-request) using ip6tables
+            ip6tables -I INPUT -p icmpv6 --icmpv6-type echo-request -j DROP 2>/dev/null || true
+
+            # Persistence: restore ip rule at boot
+            cat > /etc/network/if-up.d/ip6out << 'PERSEOF'
+#!/bin/sh
+ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
+PERSEOF
+            chmod +x /etc/network/if-up.d/ip6out
+
+            echo "Исходящий IPv6 настроен."
+        fi
+    fi
 fi
-if grep --color 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf; then
-   echo "IPv6 already blocked."
+
+# --- IPv6 handling: if outgoing NOT enabled, disable IPv6 completely ---
+if [[ "$ENABLE_IPV6_OUTGOING" != "yes" ]]; then
+    echo "# Disable ping and IPv6 completely."
+    echo "blacklist ipv6" > /etc/modprobe.d/blacklist-ipv6.conf
+    update-initramfs -u
+    if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
+        echo "Ping already blocked."
+    else
+        echo "Ping will be blocked now. It's OK."
+        echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+    fi
+    if grep --color 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf; then
+        echo "IPv6 already blocked."
+    else
+        echo "IPv6 will be blocked now. It's OK."
+        echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+    fi
+    sysctl -p
 else
-   echo "IPv6 will be blocked now. It's OK."
-   echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+    # If outgoing IPv6 enabled, only block IPv6 ping and incoming connections,
+    # but keep IPv6 stack active.
+    echo "# IPv6 outgoing enabled – keeping IPv6 stack active, blocking only incoming ICMP echo requests."
+    # Block IPv4 ping
+    if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
+        echo "IPv4 ping already blocked."
+    else
+        echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+    fi
+    sysctl -p
+
+    # Use ip6tables to drop incoming IPv6 ping and all other incoming IPv6 traffic
+    # (except established connections)
+    ip6tables -P INPUT DROP
+    ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    ip6tables -A INPUT -p icmpv6 --icmpv6-type echo-request -j DROP
+    # Save rules for persistence
+    command -v ip6tables-save >/dev/null && ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
 fi
-sysctl -p
+
+# --- End of IPv6 configuration ---
+
 echo ""
 echo ""
 echo ""
@@ -91,12 +181,12 @@ fi
 
 # Allow root login only with keys, ensuring idempotency
 if ! grep -q "^PermitRootLogin without-password" /etc/ssh/sshd_config; then
-    sed -i '/^#\\?PermitRootLogin/d' /etc/ssh/sshd_config
+    sed -i '/^#\?PermitRootLogin/d' /etc/ssh/sshd_config
     echo "PermitRootLogin without-password" >> /etc/ssh/sshd_config
 fi
 
 if ! grep -q "^PubkeyAuthentication yes" /etc/ssh/sshd_config; then
-    sed -i '/^#\\?PubkeyAuthentication/d' /etc/ssh/sshd_config
+    sed -i '/^#\?PubkeyAuthentication/d' /etc/ssh/sshd_config
     echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
 fi
 
@@ -130,9 +220,9 @@ EOF
 # Allow only security updates (and ESM if available)
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
-    "\${distro_id}:\${distro_codename}-security";
-    "\${distro_id}ESMApps:\${distro_codename}-apps-security";
-    "\${distro_id}ESM:\${distro_codename}-infra-security";
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
@@ -273,9 +363,25 @@ echo ""
 
 # Configure UFW firewall – add rules and ask whether to enable
 echo "Configuring UFW firewall..."
-ufw allow 22/tcp
-ufw allow 24940/tcp
-echo "SSH ports 22 and 24940 are allowed."
+
+# Determine current SSH listening ports to prevent lockout
+CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | sed -E 's/.*://' | sort -u)
+if [ -z "$CURRENT_SSH_PORTS" ]; then
+    echo "Warning: Could not determine current SSH ports. Allowing default 22 and 24940."
+    ufw allow 22/tcp
+    ufw allow 24940/tcp
+else
+    echo "Current SSH listening ports: $CURRENT_SSH_PORTS"
+    for port in $CURRENT_SSH_PORTS; do
+        ufw allow "$port"/tcp
+        echo "Allowed SSH port $port/tcp in UFW."
+    done
+    # Also ensure standard ports are allowed
+    ufw allow 22/tcp 2>/dev/null || true
+    ufw allow 24940/tcp 2>/dev/null || true
+fi
+
+echo "SSH ports are allowed."
 read -p "Do you want to enable UFW now? (y/N): " enable_ufw
 if [[ "$enable_ufw" =~ ^[Yy]$ ]]; then
     echo "Enabling UFW..."
@@ -333,7 +439,7 @@ USERNAME="proxy_user"
 # Generate secret
 SECRET=$(openssl rand -hex 16)
 TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
-FULL_SECRET="ee\${SECRET}\${TLS_DOMAIN_HEX}"
+FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
 # Create directories and config
 INSTALL_DIR="/etc/telemt-docker"
 CONFIG_DIR="$INSTALL_DIR/config"
@@ -395,75 +501,18 @@ fi
 echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
 # Start container
 $DOCKER_COMPOSE_CMD up -d
+# Wait a moment and check if container is running
+sleep 5
+if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
+    echo "Telemt container is running."
+else
+    echo "ERROR: Telemt container failed to start. Check logs with 'docker logs telemt'."
+fi
 # Save connection link
-LINK="tg://proxy?server=\${EXTERNAL_IP}&port=\${HOST_PORT}&secret=\${FULL_SECRET}"
+LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
 echo "$LINK" > /root/tg-proxy_secret.txt
 echo "Telemt proxy installed. Link saved to /root/tg-proxy_secret.txt"
 # --- End of telemt installation ---
-
-# --- Configure IPv6 outgoing (in-IPv4, out-IPv6) ---
-printf "\\033[33m# Настроить исходящий IPv6? (не на всех серверах доступно)\\033[0m\\n"
-read -p "Включить исходящий IPv6 (in-IPv4, out-IPv6)? (y/N): " enable_ip6out
-if [[ "$enable_ip6out" =~ ^[Yy]$ ]]; then
-    BACKUP_DIR="/root/ip6out-backup"
-    mkdir -p "$BACKUP_DIR"
-
-    IFACE=$(ip route show default | awk '/default/ {print $5}' | head -1)
-    if [ -z "$IFACE" ]; then
-        echo "Ошибка: не удалось определить сетевой интерфейс. Пропуск настройки IPv6."
-    else
-        echo "Настраиваем исходящий IPv6 на интерфейсе $IFACE..."
-
-        # Backup current state
-        cp /etc/iproute2/rt_tables "$BACKUP_DIR/rt_tables.bak" 2>/dev/null || true
-        ip6tables-save > "$BACKUP_DIR/ip6tables.bak" 2>/dev/null || true
-        ip rule show > "$BACKUP_DIR/ip-rules.bak" 2>/dev/null || true
-        ip -6 rule show > "$BACKUP_DIR/ip6-rules.bak" 2>/dev/null || true
-
-        # Test IPv6 connectivity before applying policy routing
-        if ! ip -6 addr show scope global dev "$IFACE" 2>/dev/null | grep -q "inet6"; then
-            echo "Ошибка: нет глобального IPv6-адреса на $IFACE. Исходящий IPv6 не будет работать."
-            echo "Пропуск настройки IPv6."
-        elif ! ping6 -c 2 -W 3 2001:4860:4860::8888 >/dev/null 2>&1; then
-            echo ""
-            echo "============================================"
-            echo " ОШИБКА: проверка IPv6 не пройдена."
-            echo " Провайдер блокирует исходящий IPv6."
-            echo " Обратитесь в поддержку хостинга."
-            echo "============================================"
-            echo "Пропуск настройки IPv6."
-        else
-            echo "Проверка IPv6: OK."
-
-            # Policy routing: create ipv6out table and rule
-            grep -q "200.*ipv6out" /etc/iproute2/rt_tables || echo "200 ipv6out" >> /etc/iproute2/rt_tables
-            ip -6 route flush table ipv6out 2>/dev/null || true
-            IPV6_GW=$(ip -6 route show default | awk '{print $3}' | head -1)
-            if [ -n "$IPV6_GW" ]; then
-                ip -6 route add default via "$IPV6_GW" dev "$IFACE" table ipv6out
-                ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
-                echo "Policy routing настроен. IPv6 gateway: $IPV6_GW"
-            else
-                echo "Внимание: IPv6 gateway не найден. Policy routing не настроен."
-                echo "После перезагрузки или появления IPv6 запустите: /root/ip6out-install.sh"
-            fi
-
-            # Disable IPv6 ping (echo-request)
-            ip6tables -I INPUT -p icmpv6 --icmpv6-type echo-request -j DROP 2>/dev/null || true
-
-            # Persistence: restore ip rule at boot
-            cat > /etc/network/if-up.d/ip6out << 'PERSEOF'
-#!/bin/sh
-ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
-PERSEOF
-            chmod +x /etc/network/if-up.d/ip6out
-
-            echo "Исходящий IPv6 настроен."
-        fi
-    fi
-fi
-
-# --- End of IPv6 outgoing configuration ---
 
 # Set new cron jobs, completely replacing the current crontab
 crontab - <<EOF
