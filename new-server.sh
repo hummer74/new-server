@@ -161,6 +161,7 @@ else
     # Save rules for persistence
     command -v ip6tables-save >/dev/null && ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
 fi
+pause
 
 # --- End of IPv6 configuration ---
 
