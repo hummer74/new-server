@@ -243,15 +243,19 @@ else
     echo "Only root may add a user to the system."
 fi
 
-# Download and extract files for opossum, set ownership
+# Extract files for opossum from setup archive (opossum.7z is inside setup.7z)
 if [ -d /home/opossum ]; then
-    cd /home/opossum
-    wget -O opossum.7z https://raw.githubusercontent.com/hummer74/new-server/main/opossum.7z
-    7za x opossum.7z -aoa
-    rm -f opossum.7z
-    chmod +x opossum.sh
-    chown -R opossum:opossum /home/opossum
-    cd /root
+    if [ -f /root/opossum.7z ]; then
+        cp /root/opossum.7z /home/opossum/
+        cd /home/opossum
+        7za x opossum.7z -aoa
+        rm -f opossum.7z
+        chmod +x opossum.sh
+        chown -R opossum:opossum /home/opossum
+        cd /root
+    else
+        echo "/root/opossum.7z not found (was it inside setup.7z?), skipping opossum setup."
+    fi
 else
     echo "Home directory for opossum not found, skipping downloads."
 fi
