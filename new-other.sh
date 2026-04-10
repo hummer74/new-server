@@ -9,6 +9,9 @@ fi
 
 echo "# Install all updates."
 dpkg --configure -a
+# Remove archived/invalid repos that break apt update (e.g. bullseye-backports)
+sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
+sed -i '/-backports/d' /etc/apt/sources.list.d/* 2>/dev/null || true
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 echo ""
 echo ""
