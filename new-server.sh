@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -108,7 +109,7 @@ echo ""
 echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg -y &&
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg -y
 
 # Configure unattended-upgrades (automatic security updates)
 echo ""
@@ -126,9 +127,9 @@ EOF
 # Allow only security updates (and ESM if available)
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
 Unattended-Upgrade::Allowed-Origins {
-    "\${distro_id}:\${distro_codename}-security";
-    "\${distro_id}ESMApps:\${distro_codename}-apps-security";
-    "\${distro_id}ESM:\${distro_codename}-infra-security";
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
@@ -197,7 +198,7 @@ chmod 700 ~/.config/mc
 chmod 700 ~/.ssh
 echo ""
 echo "Fix all key permissions"
-chmod 600 ~/.ssh/*
+chmod 600 ~/.ssh/* 2>/dev/null
 chmod 644 ~/.ssh/*.pub
 echo ""
 echo "Fix special files permissions"
@@ -262,7 +263,7 @@ echo ""
 systemctl reset-failed
 # Create a marker file with the pretty hostname
 safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
-touch "zzz-$safe_name"
+touch "/root/zzz-$safe_name"
 echo ""
 echo ""
 echo ""
@@ -399,12 +400,88 @@ echo "$LINK" > /root/tg-proxy_secret.txt
 echo "Telemt proxy installed. Link saved to /root/tg-proxy_secret.txt"
 # --- End of telemt installation ---
 
+# --- Configure IPv6 outgoing (in-IPv4, out-IPv6) ---
+printf "\033[33m# Настроить исходящий IPv6? (не на всех серверах доступно)\033[0m\n"
+read -p "Включить исходящий IPv6 (in-IPv4, out-IPv6)? (y/N): " enable_ip6out
+if [[ "$enable_ip6out" =~ ^[Yy]$ ]]; then
+    BACKUP_DIR="/root/ip6out-backup"
+    mkdir -p "$BACKUP_DIR"
+
+    IFACE=$(ip route show default | awk '/default/ {print $5}' | head -1)
+    if [ -z "$IFACE" ]; then
+        echo "Ошибка: не удалось определить сетевой интерфейс. Пропуск настройки IPv6."
+    else
+        echo "Настраиваем исходящий IPv6 на интерфейсе $IFACE..."
+
+        # Backup current state
+        cp /etc/sysctl.conf "$BACKUP_DIR/sysctl.conf.bak"
+        [ -f /etc/sysctl.d/11-disable-ipv6.conf ] && cp /etc/sysctl.d/11-disable-ipv6.conf "$BACKUP_DIR/11-disable-ipv6.conf.bak" || true
+        [ -f /etc/modprobe.d/blacklist-ipv6.conf ] && cp /etc/modprobe.d/blacklist-ipv6.conf "$BACKUP_DIR/blacklist-ipv6.conf.bak" || true
+        cp /etc/iproute2/rt_tables "$BACKUP_DIR/rt_tables.bak" 2>/dev/null || true
+        ip6tables-save > "$BACKUP_DIR/ip6tables.bak" 2>/dev/null || true
+        ip rule show > "$BACKUP_DIR/ip-rules.bak" 2>/dev/null || true
+        ip -6 rule show > "$BACKUP_DIR/ip6-rules.bak" 2>/dev/null || true
+
+        # Record what was saved
+        > "$BACKUP_DIR/backup-info"
+        [ -f "$BACKUP_DIR/11-disable-ipv6.conf.bak" ] && echo "saved_disable_file=yes" >> "$BACKUP_DIR/backup-info" || echo "saved_disable_file=no" >> "$BACKUP_DIR/backup-info"
+        [ -f "$BACKUP_DIR/blacklist-ipv6.conf.bak" ] && echo "saved_modprobe=yes" >> "$BACKUP_DIR/backup-info" || echo "saved_modprobe=no" >> "$BACKUP_DIR/backup-info"
+
+        # Remove IPv6 restrictions
+        rm -f /etc/modprobe.d/blacklist-ipv6.conf
+        rm -f /etc/sysctl.d/11-disable-ipv6.conf
+        sed -i '/^net\.ipv6\.conf\.all\.disable_ipv6/d' /etc/sysctl.conf
+        sed -i '/^net\.ipv6\.conf\.default\.disable_ipv6/d' /etc/sysctl.conf
+
+        # Add provider IPv6 settings
+        cat >> /etc/sysctl.conf <<IPV6EOF
+
+# IPv6 outgoing (in-IPv4, out-IPv6)
+net.ipv6.conf.$IFACE.disable_ipv6 = 0
+net.ipv6.conf.$IFACE.accept_ra = 2
+net.ipv6.conf.all.forwarding = 1
+net.ipv6.conf.all.addr_gen_mode = 0
+net.ipv6.conf.$IFACE.use_tempaddr = 0
+IPV6EOF
+
+        sysctl -p
+
+        # Policy routing: create ipv6out table and rule
+        grep -q "200.*ipv6out" /etc/iproute2/rt_tables || echo "200 ipv6out" >> /etc/iproute2/rt_tables
+        ip -6 route flush table ipv6out 2>/dev/null || true
+        IPV6_GW=$(ip -6 route show default | awk '{print $3}' | head -1)
+        if [ -n "$IPV6_GW" ]; then
+            ip -6 route add default via "$IPV6_GW" dev "$IFACE" table ipv6out
+            ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
+            echo "Policy routing настроен. IPv6 gateway: $IPV6_GW"
+        else
+            echo "Внимание: IPv6 gateway не найден. Policy routing не настроен."
+            echo "После перезагрузки или появления IPv6 запустите: /root/ip6out-install.sh"
+        fi
+
+        # Disable IPv6 ping (echo-request)
+        ip6tables -I INPUT -p icmpv6 --icmpv6-type echo-request -j DROP 2>/dev/null || true
+
+        # Persistence: restore ip rule at boot
+        cat > /etc/network/if-up.d/ip6out << 'PERSEOF'
+#!/bin/sh
+ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
+PERSEOF
+        chmod +x /etc/network/if-up.d/ip6out
+
+        echo "Исходящий IPv6 настроен."
+    fi
+fi
+
+# --- End of IPv6 outgoing configuration ---
+
 # Set new cron jobs, completely replacing the current crontab
 crontab - <<EOF
-@reboot		date >> /root/reboot.log
-* * * * *	systemctl reset-failed
-0 1 * * *	/root/auto-update.sh
-0 0 1 * *	date > /root/reboot.log
+@reboot         date >> /root/reboot.log
+0 0 1 * *       date > /root/reboot.log
+1 */2 * * *     /root/telemt-update.sh
+5 */3 * * *     /root/auto-update.sh
+*/5 * * * *     systemctl reset-failed
 EOF
 
 echo "Crontab successfully updated."
@@ -418,6 +495,7 @@ echo ""
 echo ""
 echo ""
 echo "REBOOT"
+echo ""
 echo ""
 echo ""
 echo ""

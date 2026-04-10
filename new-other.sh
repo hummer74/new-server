@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -96,9 +97,9 @@ EOF
 # Allow only security updates (and ESM if available)
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
 Unattended-Upgrade::Allowed-Origins {
-    "\${distro_id}:\${distro_codename}-security";
-    "\${distro_id}ESMApps:\${distro_codename}-apps-security";
-    "\${distro_id}ESM:\${distro_codename}-infra-security";
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
@@ -163,7 +164,7 @@ if [ $upgrade_status -eq 0 ]; then
     sleep 15
     reboot now
 else
-    echo "Update failed. Reboot aborted." > /root/auto-update.log
+    echo "Update failed. Reboot aborted." > ~/auto-update.log
     exit 2
 fi
 EOF
@@ -231,7 +232,7 @@ EOF
 
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
-printf "\033[33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
+printf "\033[1;33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
 grep --color 'Port ' /etc/ssh/sshd_config
 read -n1 -s -r -p "Press any key..."; echo
 echo ""
@@ -260,7 +261,7 @@ echo ""
 systemctl reset-failed
 # Create a marker file with the pretty hostname
 safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
-touch "zzz-$safe_name"
+touch "/root/zzz-$safe_name"
 echo ""
 echo ""
 echo ""
@@ -289,10 +290,11 @@ echo ""
 
 # Set new cron jobs, completely replacing the current crontab
 crontab - <<EOF
-@reboot		date >> /root/reboot.log
-* * * * *	systemctl reset-failed
-0 1 * * *	/root/auto-update.sh
-0 0 1 * *	date > /root/reboot.log
+@reboot         date >> /root/reboot.log
+0 0 1 * *       date > /root/reboot.log
+1 */2 * * *     /root/telemt-update.sh
+5 */3 * * *     /root/auto-update.sh
+*/5 * * * *     systemctl reset-failed
 EOF
 
 echo "Crontab successfully updated."
@@ -307,6 +309,7 @@ echo ""
 echo ""
 echo ""
 echo "REBOOT"
+echo ""
 echo ""
 echo ""
 echo ""

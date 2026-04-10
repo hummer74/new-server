@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -34,6 +35,6 @@ EOF
 systemctl restart fail2ban.service
 systemctl status fail2ban.service
 
-printf "\033[33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
+printf "\033[1;33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
 grep --color 'Port ' /etc/ssh/sshd_config
 read -n1 -s -r -p "Press any key..."; echo

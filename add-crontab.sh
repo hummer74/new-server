@@ -8,11 +8,11 @@ fi
 
 # Array of lines to add (use consistent delimiter style)
 lines=(
-    "@reboot		date >> /root/reboot.log"
-    "0 0 1 * *		date > /root/reboot.log"
-    "1 */2 * * *	/root/telemt-update.sh"
-    "5 */3 * * *	/root/auto-update.sh"
-    "*/5 * * * *	systemctl reset-failed"
+    "@reboot            date >> /root/reboot.log"
+    "0 0 1 * *          date > /root/reboot.log"
+    "1 */2 * * *        /root/telemt-update.sh"
+    "5 */3 * * *        /root/auto-update.sh"
+    "*/5 * * * *        systemctl reset-failed"
 )
 
 # Create a temporary file and ensure it is deleted

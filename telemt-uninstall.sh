@@ -68,7 +68,6 @@ fi
 if command -v docker >/dev/null; then
     info "Removing unused Docker data (images, containers, volumes)..."
     docker system prune --volumes -f
-    docker image prune -a -f
 else
     warn "Docker command not found, skipping Docker prune."
 fi

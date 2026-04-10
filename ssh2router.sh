@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$EUID" -ne 0 ]; then
+    echo "This script must be run as root." >&2
+    exit 1
+fi
+
 # --- CONFIGURATION (set once) ---
 ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
@@ -69,8 +74,8 @@ if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
         [aA]* )
             for svc in "${EXISTING_SERVICES[@]}"; do
                 echo "Stopping and disabling $svc..."
-                sudo systemctl stop "$svc" 2>/dev/null
-                sudo systemctl disable "$svc" 2>/dev/null
+                systemctl stop "$svc" 2>/dev/null
+                systemctl disable "$svc" 2>/dev/null
             done
             ;;
         [sS]* | "" )
@@ -81,8 +86,8 @@ if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
             if [ "$IDX" -ge 0 ] && [ "$IDX" -lt "${#EXISTING_SERVICES[@]}" ]; then
                 SELECTED_SVC="${EXISTING_SERVICES[$IDX]}"
                 echo "Removing $SELECTED_SVC..."
-                sudo systemctl stop "$SELECTED_SVC" 2>/dev/null
-                sudo systemctl disable "$SELECTED_SVC" 2>/dev/null
+                systemctl stop "$SELECTED_SVC" 2>/dev/null
+                systemctl disable "$SELECTED_SVC" 2>/dev/null
             else
                 echo "Invalid index. Skipping deletion."
             fi
@@ -95,12 +100,12 @@ fi
 # 4. Software installation
 if ! command -v autossh &> /dev/null; then
     echo "Updating packages and installing autossh..."
-    sudo apt update && sudo apt install autossh -y
+    apt update && apt install autossh -y
 fi
 
 # 5. Create systemd template service
 echo "Creating/Updating systemd unit file..."
-sudo bash -c "cat <<EOF > $SERVICE_TEMPLATE
+bash -c "cat <<EOF > $SERVICE_TEMPLATE
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
 After=network.target
@@ -131,9 +136,9 @@ EOF"
 
 # 6. Launch and activation
 echo "Reloading systemd and starting service..."
-sudo systemctl daemon-reload
-sudo systemctl enable "$SERVICE_INSTANCE"
-sudo systemctl start "$SERVICE_INSTANCE"
+systemctl daemon-reload
+systemctl enable "$SERVICE_INSTANCE"
+systemctl start "$SERVICE_INSTANCE"
 
 # 7. Output and logging
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')

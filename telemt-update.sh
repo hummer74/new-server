@@ -5,6 +5,11 @@ PROJECT_DIR="/etc/telemt-docker"
 LOG_FILE="/root/telemt-update.log"
 MAX_LOG_LINES=1000
 
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root." >&2
+    exit 1
+fi
+
 if command -v docker-compose >/dev/null; then
     COMPOSE_CMD="docker-compose"
 elif docker compose version >/dev/null 2>&1; then
