@@ -59,6 +59,7 @@ echo ""
 echo ""
 echo ""
 
+: <<'DISABLED'
 # --- Configure IPv6 outgoing (in-IPv4, out-IPv6) BEFORE disabling IPv6 ---
 ENABLE_IPV6_OUTGOING="no"
 printf "\\033[33m# Настроить исходящий IPv6? (не на всех серверах доступно)\\033[0m\\n"
@@ -122,47 +123,54 @@ PERSEOF
         fi
     fi
 fi
+DISABLED
 
-# --- IPv6 handling: if outgoing NOT enabled, disable IPv6 completely ---
-if [[ "$ENABLE_IPV6_OUTGOING" != "yes" ]]; then
-    echo "# Disable ping and IPv6 completely."
+# --- IPv6 handling: user chooses between full disable or active with restrictions ---
+echo ""
+echo "=============================================="
+echo " IPv6 Configuration "
+echo "=============================================="
+echo "Choose IPv6 mode:"
+echo "  1) Disable IPv6 completely (recommended if provider blocks outgoing IPv6)"
+echo "  2) Keep IPv6 active but block all incoming connections/pings"
+read -p "Enter 1 or 2 (default 2): " ipv6_mode
+
+# Block IPv4 ping in any case
+if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
+    echo "IPv4 ping already blocked."
+else
+    echo "Blocking IPv4 ping."
+    echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+fi
+sysctl -p
+
+if [[ "$ipv6_mode" == "1" ]]; then
+    echo "# Disabling IPv6 completely."
     echo "blacklist ipv6" > /etc/modprobe.d/blacklist-ipv6.conf
     update-initramfs -u
-    if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
-        echo "Ping already blocked."
-    else
-        echo "Ping will be blocked now. It's OK."
-        echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
-    fi
     if grep --color 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf; then
-        echo "IPv6 already blocked."
+        echo "IPv6 already disabled in sysctl."
     else
-        echo "IPv6 will be blocked now. It's OK."
         echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
     fi
     sysctl -p
 else
-    # If outgoing IPv6 enabled, only block IPv6 ping and incoming connections,
-    # but keep IPv6 stack active.
-    echo "# IPv6 outgoing enabled – keeping IPv6 stack active, blocking only incoming ICMP echo requests."
-    # Block IPv4 ping
-    if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
-        echo "IPv4 ping already blocked."
-    else
-        echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
-    fi
+    # Default: active IPv6 with incoming restrictions
+    echo "# Keeping IPv6 stack active, but dropping all incoming IPv6 traffic (except established)."
+    # Remove any global disable settings that might conflict
+    sed -i '/^net\.ipv6\.conf\.all\.disable_ipv6/d' /etc/sysctl.conf
+    sed -i '/^net\.ipv6\.conf\.default\.disable_ipv6/d' /etc/sysctl.conf
     sysctl -p
 
-    # Use ip6tables to drop incoming IPv6 ping and all other incoming IPv6 traffic
-    # (except established connections)
+    # Set up ip6tables rules
     ip6tables -P INPUT DROP
     ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
     ip6tables -A INPUT -p icmpv6 --icmpv6-type echo-request -j DROP
     # Save rules for persistence
     command -v ip6tables-save >/dev/null && ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
 fi
-
 # --- End of IPv6 configuration ---
+
 
 echo ""
 echo ""
