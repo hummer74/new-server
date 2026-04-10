@@ -35,7 +35,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/ne
 
 ### ⚠️ Оnly for hummer74 (поверьте, не надо вам этого):
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-server.sh)"
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/startinstall.sh)"
 ```
 
 
