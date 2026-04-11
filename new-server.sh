@@ -7,7 +7,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# --- Определяем версию Debian и формат APT-источников ---
+# --- Определяем версию Debian ---
 if [ -f /etc/os-release ]; then
     source /etc/os-release
     DEBIAN_VERSION_ID="${VERSION_ID:-0}"
@@ -19,57 +19,38 @@ fi
 
 echo "Определена ОС: ${PRETTY_NAME:-$NAME $VERSION} (кодовое имя: $DEBIAN_CODENAME)"
 
-# Определяем, используется ли формат deb822 по умолчанию (Debian 12+)
-if [ "$DEBIAN_VERSION_ID" -ge 12 ] 2>/dev/null; then
-    USE_DEB822="true"
-else
-    USE_DEB822="false"
-fi
-
-# Проверяем целостность .sources файлов
-BROKEN_DEB822_FOUND="false"
+# --- Принудительно убираем все deb822 .sources файлы (они часто ломаны на VPS) ---
+echo "Проверяем и исправляем APT-источники..."
 if [ -d /etc/apt/sources.list.d ]; then
     for src in /etc/apt/sources.list.d/*.sources; do
-        if [ -f "$src" ] && grep -q "^Suite:" "$src" 2>/dev/null; then
-            # Проверяем синтаксис APT
-            if ! apt-get update --print-uris 2>&1 | grep -q "Malformed"; then
-                USE_DEB822="true"
-            else
-                echo "Обнаружен повреждённый deb822-файл: $src"
-                BROKEN_DEB822_FOUND="true"
-            fi
+        if [ -f "$src" ]; then
+            echo "Найден deb822-файл: $src – переименовываем в .bak"
+            mv "$src" "$src.bak-$(date +%Y%m%d%H%M%S)"
         fi
     done
 fi
 
-# --- Исправляем репозитории, если они сломаны или формат не deb822 ---
-if [ "$BROKEN_DEB822_FOUND" = "true" ] || [ "$USE_DEB822" = "false" ]; then
-    echo "Восстанавливаем стандартные репозитории в формате sources.list ..."
-    # Создаём резервную копию повреждённых/старых файлов
-    for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
-        [ -f "$f" ] && mv "$f" "$f.bak-$(date +%Y%m%d%H%M%S)"
-    done
-
-    # Генерируем корректный sources.list в зависимости от версии Debian
-    cat > /etc/apt/sources.list <<EOF
+# Создаём стандартный sources.list (он надёжнее)
+cat > /etc/apt/sources.list <<EOF
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main contrib non-free non-free-firmware
 EOF
-    # Для старых версий (без non-free-firmware) компонент просто игнорируется
-    if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
-        sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
-    fi
-    echo "Создан файл /etc/apt/sources.list для версии $DEBIAN_CODENAME."
+
+# Для версий младше 12 убираем non-free-firmware
+if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
+    sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
 fi
 
-# Удаляем заведомо сломанные backports (если есть)
+# Удаляем backports (если вдруг остались)
 sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
-sed -i '/-backports/d' /etc/apt/sources.list.d/* 2>/dev/null || true
+
+echo "APT-источники исправлены."
 
 echo "# Install all updates."
 dpkg --configure -a
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
+# ... далее остальной код без измененийecho "# Install all updates."
 echo ""
 echo ""
 echo ""
