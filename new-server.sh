@@ -183,6 +183,26 @@ echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw, autossh."
 apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh -y
 
+# --- Настройка локалей (сразу после установки locales, до вызова Perl) ---
+echo "Set UTF-8 locales."
+locale-gen en_US.UTF-8 ru_RU.UTF-8
+
+# Устанавливаем локаль глобально
+update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
+
+# Дополнительно прописываем в /etc/environment (для systemd и cron)
+if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
+    echo "LANG=ru_RU.UTF-8" >> /etc/environment
+    echo "LC_ALL=ru_RU.UTF-8" >> /etc/environment
+fi
+
+# Применяем к текущей сессии
+export LANG=ru_RU.UTF-8
+export LC_ALL=ru_RU.UTF-8
+unset LC_CTYPE LC_MESSAGES 2>/dev/null || true
+echo ""
+echo ""
+
 # --- Настройка Fail2ban (адаптировано из f2b-install.sh) ---
 echo "Configuring Fail2ban..."
 systemctl enable fail2ban.service
@@ -279,28 +299,6 @@ EOF
 else
     echo "Enhanced commands already present in ~/.profile"
 fi
-echo ""
-echo ""
-echo ""
-
-# --- Настройка локалей (ru_RU.UTF-8 без warning'ов) ---
-echo "Set UTF-8 locales."
-locale-gen en_US.UTF-8 ru_RU.UTF-8
-
-# Устанавливаем локаль глобально
-update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
-
-# Дополнительно прописываем в /etc/environment (для systemd и cron)
-if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
-    echo "LANG=ru_RU.UTF-8" >> /etc/environment
-    echo "LC_ALL=ru_RU.UTF-8" >> /etc/environment
-fi
-
-# Применяем к текущей сессии
-export LANG=ru_RU.UTF-8
-export LC_ALL=ru_RU.UTF-8
-unset LC_CTYPE LC_MESSAGES 2>/dev/null || true
-
 echo ""
 echo ""
 echo ""
