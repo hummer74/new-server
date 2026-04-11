@@ -7,8 +7,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo "# Install all updates."
-dpkg --configure -a
 # --- Определяем версию Debian и формат APT-источников ---
 if [ -f /etc/os-release ]; then
     source /etc/os-release
@@ -28,14 +26,13 @@ else
     USE_DEB822="false"
 fi
 
-# Если обнаружены повреждённые .sources‑файлы, восстанавливаем их или переходим на .list
+# Проверяем целостность .sources файлов
 BROKEN_DEB822_FOUND="false"
 if [ -d /etc/apt/sources.list.d ]; then
     for src in /etc/apt/sources.list.d/*.sources; do
         if [ -f "$src" ] && grep -q "^Suite:" "$src" 2>/dev/null; then
             # Проверяем синтаксис APT
-            if ! apt-get update --print-uris 2>/dev/null | grep -q "Malformed"; then
-                # Если файл есть и синтаксис ОК, оставляем deb822
+            if ! apt-get update --print-uris 2>&1 | grep -q "Malformed"; then
                 USE_DEB822="true"
             else
                 echo "Обнаружен повреждённый deb822-файл: $src"
@@ -45,7 +42,7 @@ if [ -d /etc/apt/sources.list.d ]; then
     done
 fi
 
-# --- Исправляем репозитории, если они сломаны ---
+# --- Исправляем репозитории, если они сломаны или формат не deb822 ---
 if [ "$BROKEN_DEB822_FOUND" = "true" ] || [ "$USE_DEB822" = "false" ]; then
     echo "Восстанавливаем стандартные репозитории в формате sources.list ..."
     # Создаём резервную копию повреждённых/старых файлов
@@ -66,11 +63,12 @@ EOF
     echo "Создан файл /etc/apt/sources.list для версии $DEBIAN_CODENAME."
 fi
 
-# Удаляем заведомо сломанные backports (если есть) — эта часть была и раньше
+# Удаляем заведомо сломанные backports (если есть)
 sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
 sed -i '/-backports/d' /etc/apt/sources.list.d/* 2>/dev/null || true
 
-# Теперь безопасно обновляем списки пакетов
+echo "# Install all updates."
+dpkg --configure -a
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
 echo ""
 echo ""
@@ -117,72 +115,6 @@ echo ""
 echo ""
 echo ""
 
-: <<'DISABLED'
-# --- Configure IPv6 outgoing (in-IPv4, out-IPv6) BEFORE disabling IPv6 ---
-ENABLE_IPV6_OUTGOING="no"
-printf "\\033[33m# Настроить исходящий IPv6? (не на всех серверах доступно)\\033[0m\\n"
-read -p "Включить исходящий IPv6 (in-IPv4, out-IPv6)? (y/N): " enable_ip6out
-if [[ "$enable_ip6out" =~ ^[Yy]$ ]]; then
-    ENABLE_IPV6_OUTGOING="yes"
-    BACKUP_DIR="/root/ip6out-backup"
-    mkdir -p "$BACKUP_DIR"
-
-    IFACE=$(ip route show default | awk '/default/ {print $5}' | head -1)
-    if [ -z "$IFACE" ]; then
-        echo "Ошибка: не удалось определить сетевой интерфейс. Пропуск настройки IPv6."
-    else
-        echo "Настраиваем исходящий IPv6 на интерфейсе $IFACE..."
-
-        # Backup current state
-        cp /etc/iproute2/rt_tables "$BACKUP_DIR/rt_tables.bak" 2>/dev/null || true
-        ip6tables-save > "$BACKUP_DIR/ip6tables.bak" 2>/dev/null || true
-        ip rule show > "$BACKUP_DIR/ip-rules.bak" 2>/dev/null || true
-        ip -6 rule show > "$BACKUP_DIR/ip6-rules.bak" 2>/dev/null || true
-
-        # Test IPv6 connectivity before applying policy routing
-        if ! ip -6 addr show scope global dev "$IFACE" 2>/dev/null | grep -q "inet6"; then
-            echo "Ошибка: нет глобального IPv6-адреса на $IFACE. Исходящий IPv6 не будет работать."
-            echo "Пропуск настройки IPv6."
-        elif ! ping6 -c 2 -W 3 2001:4860:4860::8888 >/dev/null 2>&1; then
-            echo ""
-            echo "============================================"
-            echo " ОШИБКА: проверка IPv6 не пройдена."
-            echo " Провайдер блокирует исходящий IPv6."
-            echo " Обратитесь в поддержку хостинга."
-            echo "============================================"
-            echo "Пропуск настройки IPv6."
-        else
-            echo "Проверка IPv6: OK."
-
-            # Policy routing: create ipv6out table and rule
-            grep -q "200.*ipv6out" /etc/iproute2/rt_tables || echo "200 ipv6out" >> /etc/iproute2/rt_tables
-            ip -6 route flush table ipv6out 2>/dev/null || true
-            IPV6_GW=$(ip -6 route show default | awk '{print $3}' | head -1)
-            if [ -n "$IPV6_GW" ]; then
-                ip -6 route add default via "$IPV6_GW" dev "$IFACE" table ipv6out
-                ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
-                echo "Policy routing настроен. IPv6 gateway: $IPV6_GW"
-            else
-                echo "Внимание: IPv6 gateway не найден. Policy routing не настроен."
-                echo "После перезагрузки или появления IPv6 запустите: /root/ip6out-install.sh"
-            fi
-
-            # Disable IPv6 ping (echo-request) using ip6tables
-            ip6tables -I INPUT -p icmpv6 --icmpv6-type echo-request -j DROP 2>/dev/null || true
-
-            # Persistence: restore ip rule at boot
-            cat > /etc/network/if-up.d/ip6out << 'PERSEOF'
-#!/bin/sh
-ip -6 rule add from ::/0 lookup ipv6out priority 100 2>/dev/null || true
-PERSEOF
-            chmod +x /etc/network/if-up.d/ip6out
-
-            echo "Исходящий IPv6 настроен."
-        fi
-    fi
-fi
-DISABLED
-
 # --- IPv6 handling: user chooses between full disable or active with restrictions ---
 echo ""
 echo "=============================================="
@@ -225,6 +157,7 @@ else
     ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
     ip6tables -A INPUT -p icmpv6 --icmpv6-type echo-request -j DROP
     # Save rules for persistence
+    mkdir -p /etc/iptables
     command -v ip6tables-save >/dev/null && ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
 fi
 # --- End of IPv6 configuration ---
