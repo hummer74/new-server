@@ -282,19 +282,21 @@ fi
 echo ""
 echo ""
 echo ""
+
+# --- Настройка локалей (ru_RU.UTF-8 без warning'ов) ---
 echo "Set UTF-8 locales."
 locale-gen en_US.UTF-8 ru_RU.UTF-8
-echo 'LANG=ru_RU.UTF-8' > /etc/default/locale
 
-# --- Фикс предупреждений о локали после перезагрузки ---
-cat > /etc/profile.d/zz-locale-fix.sh << 'EOF'
-# Fix locale warnings from SSH client environment
-export LANG=ru_RU.UTF-8
-export LC_ALL=ru_RU.UTF-8
-unset LC_CTYPE LC_MESSAGES 2>/dev/null
-EOF
-chmod +x /etc/profile.d/zz-locale-fix.sh
-# Применяем локаль к текущей сессии (для первой перезагрузки не критично, но убирает warning при продолжении скрипта)
+# Устанавливаем локаль глобально
+update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
+
+# Дополнительно прописываем в /etc/environment (для systemd и cron)
+if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
+    echo "LANG=ru_RU.UTF-8" >> /etc/environment
+    echo "LC_ALL=ru_RU.UTF-8" >> /etc/environment
+fi
+
+# Применяем к текущей сессии
 export LANG=ru_RU.UTF-8
 export LC_ALL=ru_RU.UTF-8
 unset LC_CTYPE LC_MESSAGES 2>/dev/null || true
