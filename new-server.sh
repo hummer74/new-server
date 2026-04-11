@@ -52,7 +52,6 @@ echo "Swap configured."
 # --- End of swap creation ---
 
 printf "\\033[33m# Change PRETTY hostname!!!\\033[0m\\n"
-read -n1 -s -r -p "Press any key..."; echo
 read -p "Type new PRETTY hostname here: " newhostname
 hostnamectl set-hostname "$newhostname" --pretty
 echo ""
