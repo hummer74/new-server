@@ -19,13 +19,14 @@ fi
 
 echo "Определена ОС: ${PRETTY_NAME:-$NAME $VERSION} (кодовое имя: $DEBIAN_CODENAME)"
 
-# --- Принудительно убираем все deb822 .sources файлы (они часто ломаны на VPS) ---
+# --- Принудительно убираем все deb822 .sources файлы ---
 echo "Проверяем и исправляем APT-источники..."
 if [ -d /etc/apt/sources.list.d ]; then
     for src in /etc/apt/sources.list.d/*.sources; do
         if [ -f "$src" ]; then
-            echo "Найден deb822-файл: $src – переименовываем в .bak"
-            mv "$src" "$src.bak-$(date +%Y%m%d%H%M%S)"
+            echo "Найден deb822-файл: $src – перемещаем в /root/apt-backups/"
+            mkdir -p /root/apt-backups
+            mv "$src" "/root/apt-backups/$(basename "$src").bak-$(date +%Y%m%d%H%M%S)"
         fi
     done
 fi
@@ -242,7 +243,8 @@ echo ""
 echo ""
 echo "Set UTF-8 locales."
 locale-gen en_US.UTF-8 ru_RU.UTF-8
-update-locale LANG=ru_RU.UTF-8
+# Вместо update-locale LANG=ru_RU.UTF-8
+echo 'LANG=ru_RU.UTF-8' > /etc/default/locale
 echo ""
 echo ""
 echo ""
