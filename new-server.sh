@@ -185,17 +185,28 @@ apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-
 
 # --- Настройка локалей (сразу после установки locales, до вызова Perl) ---
 echo "Set UTF-8 locales."
+# Генерируем базовые локали
 locale-gen en_US.UTF-8 ru_RU.UTF-8
 
-# Системная локаль (только LANG)
-update-locale LANG=ru_RU.UTF-8
+# Проверяем, действительно ли создалась ru_RU.UTF-8, и если нет — принудительно генерируем
+if ! locale -a | grep -qi "ru_ru\.utf8\|ru_ru\.utf-8"; then
+    echo "ru_RU.UTF-8 not found, forcing generation..."
+    sed -i 's/^# ru_RU.UTF-8/ru_RU.UTF-8/' /etc/locale.gen
+    locale-gen ru_RU.UTF-8
+fi
 
-# Для systemd и cron
+# Устанавливаем системную локаль через /etc/default/locale (работает всегда, в отличие от update-locale)
+cat > /etc/default/locale <<EOF
+LANG=ru_RU.UTF-8
+LC_ALL=ru_RU.UTF-8
+EOF
+
+# Для systemd и cron — дописываем в /etc/environment, если отсутствует
 if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
     echo "LANG=ru_RU.UTF-8" >> /etc/environment
 fi
 
-# Применяем к текущей сессии (убирает warning Perl здесь и сейчас)
+# Применяем к текущей сессии (убирает warning Perl и т.п.)
 export LANG=ru_RU.UTF-8
 export LC_ALL=ru_RU.UTF-8
 unset LC_CTYPE LC_MESSAGES 2>/dev/null || true
