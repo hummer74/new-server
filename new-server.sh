@@ -187,20 +187,18 @@ apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-
 echo "Set UTF-8 locales."
 locale-gen en_US.UTF-8 ru_RU.UTF-8
 
-# Устанавливаем локаль глобально
-update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
+# Системная локаль (только LANG)
+update-locale LANG=ru_RU.UTF-8
 
-# Дополнительно прописываем в /etc/environment (для systemd и cron)
+# Для systemd и cron
 if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
     echo "LANG=ru_RU.UTF-8" >> /etc/environment
-    echo "LC_ALL=ru_RU.UTF-8" >> /etc/environment
 fi
 
-# Применяем к текущей сессии
+# Применяем к текущей сессии (убирает warning Perl здесь и сейчас)
 export LANG=ru_RU.UTF-8
 export LC_ALL=ru_RU.UTF-8
 unset LC_CTYPE LC_MESSAGES 2>/dev/null || true
-echo ""
 echo ""
 
 # --- Настройка Fail2ban (адаптировано из f2b-install.sh) ---
