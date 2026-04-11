@@ -171,7 +171,6 @@ else
 fi
 # --- End of IPv6 configuration ---
 
-
 echo ""
 echo ""
 echo ""
@@ -205,129 +204,6 @@ if sshd -t; then
 else
     echo "SSH configuration syntax error. Reload aborted. Please check /etc/ssh/sshd_config."
 fi
-
-# --- Reverse SSH tunnel to OpenWrt router ---
-echo ""
-echo "=============================================="
-echo " Setting up Reverse SSH Tunnel to OpenWrt "
-echo "=============================================="
-
-# Проверяем наличие autossh (будет установлен позже, но если скрипт перезапускается, проверим сейчас)
-if ! command -v autossh &> /dev/null; then
-    echo "autossh not found, will be installed later."
-fi
-
-# Проверяем наличие ключа
-KEY_PATH="/root/.ssh/ssh2router-key"
-if [ ! -f "$KEY_PATH" ]; then
-    echo "Warning: $KEY_PATH not found. Reverse tunnel setup skipped."
-    echo "Please place the private key for tunneluser@mousehouse.ignorelist.com at $KEY_PATH"
-else
-    chmod 600 "$KEY_PATH"
-
-    # --- CONFIGURATION ---
-    ROUTER_USER="tunneluser"
-    ROUTER_HOST="mousehouse.ignorelist.com"
-    ROUTER_PORT=24930
-    LOG_FILE="/root/reverse-tunnel.log"
-
-    # 1. Определяем локальный SSH порт (наибольший из слушающих)
-    LOCAL_SSH_PORT=$(ss -tlnp | grep 'sshd' | awk '{print $4}' | awk -F':' '{print $NF}' | sort -rn | head -n 1)
-    if [ -z "$LOCAL_SSH_PORT" ]; then
-        LOCAL_SSH_PORT=22
-    fi
-    echo "Local SSH port: $LOCAL_SSH_PORT"
-
-    # 2. Генерируем удалённый порт из pretty hostname
-    PRETTY_NAME="$newhostname"
-    NAME_PREFIX=$(echo "$PRETTY_NAME" | grep -oE '[0-9]{2}' | head -n 1)
-    if [ -z "$NAME_PREFIX" ]; then
-        DEFAULT_REVERSE_PORT="25900"
-        echo "Could not extract digits from '$PRETTY_NAME', using 25900."
-    else
-        DEFAULT_REVERSE_PORT="259$NAME_PREFIX"
-        echo "Prefix '$NAME_PREFIX' from '$PRETTY_NAME' -> default remote port $DEFAULT_REVERSE_PORT"
-    fi
-
-    printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
-    read USER_INPUT_PORT
-    REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
-
-    if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
-        echo "Error: port must be a number, skipping tunnel setup."
-    else
-        SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
-        SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
-
-        # Управление существующими сервисами
-        mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "reverse-tunnel@*" --no-legend 2>/dev/null | awk '{print $1}')
-        if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
-            echo "Found existing tunnel services:"
-            for i in "${!EXISTING_SERVICES[@]}"; do
-                printf "[%d] %s\n" "$((i+1))" "${EXISTING_SERVICES[$i]}"
-            done
-            echo "Options: [Number] delete specific, [A]ll delete all, [S]kip to add new"
-            read -p "Select action: " ACTION
-            case "$ACTION" in
-                [aA]* )
-                    for svc in "${EXISTING_SERVICES[@]}"; do
-                        systemctl stop "$svc" 2>/dev/null || true
-                        systemctl disable "$svc" 2>/dev/null || true
-                    done
-                    ;;
-                [sS]* | "" ) ;;
-                [0-9]* )
-                    IDX=$((ACTION-1))
-                    if [ "$IDX" -ge 0 ] && [ "$IDX" -lt "${#EXISTING_SERVICES[@]}" ]; then
-                        SELECTED_SVC="${EXISTING_SERVICES[$IDX]}"
-                        systemctl stop "$SELECTED_SVC" 2>/dev/null || true
-                        systemctl disable "$SELECTED_SVC" 2>/dev/null || true
-                    fi
-                    ;;
-            esac
-        fi
-
-        # Создаём шаблон systemd
-        cat > "$SERVICE_TEMPLATE" <<EOF
-[Unit]
-Description=Reverse SSH Tunnel to OpenWrt on port %i
-After=network.target
-
-[Service]
-User=root
-Group=root
-Environment="AUTOSSH_GATETIME=0"
-
-ExecStart=/usr/bin/autossh -M 0 -N \\
-    -o "StrictHostKeyChecking=no" \\
-    -o "UserKnownHostsFile=/dev/null" \\
-    -o "ServerAliveInterval=60" \\
-    -o "ServerAliveCountMax=3" \\
-    -o "ExitOnForwardFailure=yes" \\
-    -o "TCPKeepAlive=yes" \\
-    -i $KEY_PATH \\
-    -p $ROUTER_PORT \\
-    -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
-    $ROUTER_USER@$ROUTER_HOST
-
-Restart=always
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-        systemctl daemon-reload
-        systemctl enable "$SERVICE_INSTANCE"
-        systemctl start "$SERVICE_INSTANCE"
-
-        TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-        echo "[$TIMESTAMP] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${PRETTY_NAME}:${LOCAL_SSH_PORT}" >> "$LOG_FILE"
-        echo "Tunnel started as $SERVICE_INSTANCE"
-        echo "Check status: systemctl status $SERVICE_INSTANCE"
-    fi
-fi
-# --- End of reverse SSH tunnel ---
 
 echo ""
 echo ""
@@ -525,6 +401,137 @@ else
 fi
 
 echo ""
+
+# --- Reverse SSH tunnel to OpenWrt router (moved after UFW) ---
+echo "=============================================="
+echo " Setting up Reverse SSH Tunnel to OpenWrt "
+echo "=============================================="
+
+# Ensure autossh is installed
+if ! command -v autossh &> /dev/null; then
+    echo "Installing autossh..."
+    apt install autossh -y
+fi
+
+KEY_PATH="/root/.ssh/ssh2router-key"
+REVERSE_LOG="/root/reverse_ssh.log"
+
+if [ ! -f "$KEY_PATH" ]; then
+    echo "Warning: $KEY_PATH not found. Reverse tunnel setup skipped." | tee -a "$REVERSE_LOG"
+else
+    chmod 600 "$KEY_PATH"
+
+    ROUTER_USER="tunneluser"
+    ROUTER_HOST="mousehouse.ignorelist.com"
+    ROUTER_PORT=24930
+
+    # 1. Local SSH port (highest)
+    LOCAL_SSH_PORT=$(ss -tlnp | grep 'sshd' | awk '{print $4}' | awk -F':' '{print $NF}' | sort -rn | head -n 1)
+    if [ -z "$LOCAL_SSH_PORT" ]; then
+        LOCAL_SSH_PORT=22
+    fi
+    echo "Local SSH port: $LOCAL_SSH_PORT" | tee -a "$REVERSE_LOG"
+
+    # 2. Remote port from pretty hostname
+    PRETTY_NAME="$newhostname"
+    NAME_PREFIX=$(echo "$PRETTY_NAME" | grep -oE '[0-9]{2}' | head -n 1)
+    if [ -z "$NAME_PREFIX" ]; then
+        DEFAULT_REVERSE_PORT="25900"
+        echo "Could not extract digits from '$PRETTY_NAME', using 25900." | tee -a "$REVERSE_LOG"
+    else
+        DEFAULT_REVERSE_PORT="259$NAME_PREFIX"
+        echo "Prefix '$NAME_PREFIX' -> default remote port $DEFAULT_REVERSE_PORT" | tee -a "$REVERSE_LOG"
+    fi
+
+    printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
+    read USER_INPUT_PORT
+    REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
+
+    if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
+        echo "Error: port must be a number, skipping tunnel setup." | tee -a "$REVERSE_LOG"
+    else
+        SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
+        SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
+
+        # Manage existing services
+        mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "reverse-tunnel@*" --no-legend 2>/dev/null | awk '{print $1}')
+        if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
+            echo "Found existing tunnel services:" | tee -a "$REVERSE_LOG"
+            for i in "${!EXISTING_SERVICES[@]}"; do
+                printf "[%d] %s\n" "$((i+1))" "${EXISTING_SERVICES[$i]}"
+            done | tee -a "$REVERSE_LOG"
+            echo "Options: [Number] delete specific, [A]ll delete all, [S]kip to add new"
+            read -p "Select action: " ACTION
+            case "$ACTION" in
+                [aA]* )
+                    for svc in "${EXISTING_SERVICES[@]}"; do
+                        systemctl stop "$svc" 2>/dev/null || true
+                        systemctl disable "$svc" 2>/dev/null || true
+                    done
+                    ;;
+                [sS]* | "" ) ;;
+                [0-9]* )
+                    IDX=$((ACTION-1))
+                    if [ "$IDX" -ge 0 ] && [ "$IDX" -lt "${#EXISTING_SERVICES[@]}" ]; then
+                        SELECTED_SVC="${EXISTING_SERVICES[$IDX]}"
+                        systemctl stop "$SELECTED_SVC" 2>/dev/null || true
+                        systemctl disable "$SELECTED_SVC" 2>/dev/null || true
+                    fi
+                    ;;
+            esac
+        fi
+
+        # Create systemd template
+        cat > "$SERVICE_TEMPLATE" <<EOF
+[Unit]
+Description=Reverse SSH Tunnel to OpenWrt on port %i
+After=network.target
+
+[Service]
+User=root
+Group=root
+Environment="AUTOSSH_GATETIME=0"
+
+ExecStart=/usr/bin/autossh -M 0 -N \\
+    -o "StrictHostKeyChecking=no" \\
+    -o "UserKnownHostsFile=/dev/null" \\
+    -o "ServerAliveInterval=60" \\
+    -o "ServerAliveCountMax=3" \\
+    -o "ExitOnForwardFailure=yes" \\
+    -o "TCPKeepAlive=yes" \\
+    -i $KEY_PATH \\
+    -p $ROUTER_PORT \\
+    -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
+    $ROUTER_USER@$ROUTER_HOST
+
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        systemctl daemon-reload
+        systemctl enable "$SERVICE_INSTANCE"
+        systemctl start "$SERVICE_INSTANCE"
+
+        # Verify service started successfully
+        sleep 2
+        if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
+            STATUS_MSG="Tunnel service $SERVICE_INSTANCE is active."
+            echo "$STATUS_MSG" | tee -a "$REVERSE_LOG"
+        else
+            STATUS_MSG="ERROR: Tunnel service $SERVICE_INSTANCE failed to start."
+            echo "$STATUS_MSG" | tee -a "$REVERSE_LOG"
+        fi
+
+        TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+        LOG_ENTRY="[$TIMESTAMP] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${PRETTY_NAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))"
+        echo "$LOG_ENTRY" >> "$REVERSE_LOG"
+        echo "Check status: systemctl status $SERVICE_INSTANCE"
+    fi
+fi
+# --- End of reverse SSH tunnel ---
 
 # --- Start of automated telemt installation (non‑interactive, defaults) ---
 echo "# Installing telemt MTProto proxy (non‑interactive)..."
