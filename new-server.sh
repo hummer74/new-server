@@ -51,7 +51,6 @@ echo "APT-источники исправлены."
 echo "# Install all updates."
 dpkg --configure -a
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
-# ... далее остальной код без измененийecho "# Install all updates."
 echo ""
 echo ""
 echo ""
@@ -183,6 +182,48 @@ echo ""
 echo ""
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw, autossh."
 apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh -y
+
+# --- Настройка Fail2ban (адаптировано из f2b-install.sh) ---
+echo "Configuring Fail2ban..."
+systemctl enable fail2ban.service
+
+cat > /etc/fail2ban/fail2ban.local <<EOF
+[Definition]
+allowipv6 = auto
+EOF
+
+# Определяем, нужно ли добавлять backend = systemd (для Debian 12+)
+if [ "$DEBIAN_VERSION_ID" -ge 12 ] 2>/dev/null; then
+    BACKEND_LINE="backend = systemd"
+else
+    BACKEND_LINE=""
+fi
+
+cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 7d
+findtime = 180m
+maxretry = 4
+ignoreip = 176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.151.139.193 45.38.143.206 217.60.252.204 176.125.243.194 194.58.68.23
+
+[sshd]
+enabled = true
+port = 22,24940
+$BACKEND_LINE
+EOF
+
+systemctl restart fail2ban.service
+sleep 2
+if systemctl is-active --quiet fail2ban.service; then
+    echo "Fail2ban is active and protecting SSH."
+else
+    echo "WARNING: Fail2ban failed to start. Check 'journalctl -u fail2ban'."
+fi
+
+printf "\033[1;33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
+grep --color 'Port ' /etc/ssh/sshd_config
+read -n1 -s -r -p "Press any key..."; echo
+# --- Конец настройки Fail2ban ---
 
 # Configure unattended-upgrades (automatic security updates)
 echo ""
