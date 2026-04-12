@@ -34,8 +34,10 @@ fi
 
 echo "Определена ОС: ${PRETTY_NAME:-$NAME $VERSION} (кодовое имя: $DEBIAN_CODENAME)"
 
-# --- APT источники (исправлен пункт 2 – удаляем дублирующие файлы + поддержка Debian 10) ---
+# --- APT источники (универсальный блок) ---
 echo "Проверяем и исправляем APT-источники..."
+
+# 1. Обрабатываем deb822-файлы .sources
 if [ -d /etc/apt/sources.list.d ]; then
     for src in /etc/apt/sources.list.d/*.sources; do
         if [ -f "$src" ]; then
@@ -46,24 +48,18 @@ if [ -d /etc/apt/sources.list.d ]; then
     done
 fi
 
-# Для Debian 10 и старше удаляем ВСЕ .list файлы (чтобы не было конфликтующих security-источников)
-if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
-    if [ -d /etc/apt/sources.list.d ]; then
-        mkdir -p /root/apt-backups
-        for listfile in /etc/apt/sources.list.d/*.list; do
-            if [ -f "$listfile" ]; then
-                echo "Удаляем конфликтующий .list файл: $listfile"
-                mv "$listfile" "/root/apt-backups/$(basename "$listfile").bak-$(date +%Y%m%d%H%M%S)"
-            fi
-        done
-    fi
-else
-    # Для более новых версий удаляем только известные конфликтующие файлы
-    rm -f /etc/apt/sources.list.d/default.list 2>/dev/null || true
-    rm -f /etc/apt/sources.list.d/updates.list 2>/dev/null || true
+# 2. Удаляем ВСЕ .list файлы (они могут содержать устаревшие или конфликтующие репозитории)
+if [ -d /etc/apt/sources.list.d ]; then
+    mkdir -p /root/apt-backups
+    for listfile in /etc/apt/sources.list.d/*.list; do
+        if [ -f "$listfile" ]; then
+            echo "Удаляем конфликтующий .list файл: $listfile"
+            mv "$listfile" "/root/apt-backups/$(basename "$listfile").bak-$(date +%Y%m%d%H%M%S)"
+        fi
+    done
 fi
 
-# Генерация sources.list в зависимости от версии Debian
+# 3. Генерация sources.list в зависимости от версии Debian
 if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
     # Debian 10 и старше используют archive (без security)
     cat > /etc/apt/sources.list <<EOF
@@ -80,12 +76,12 @@ deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main 
 EOF
 fi
 
-# Для версий младше 12 убираем non-free-firmware
+# 4. Для версий младше 12 убираем non-free-firmware
 if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
     sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
 fi
 
-# Удаляем backports (если вдруг остались)
+# 5. Удаляем backports (на всякий случай, если вдруг остались в основном файле)
 sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
 
 echo "APT-источники исправлены."
@@ -99,7 +95,6 @@ apt update -y || { echo "ERROR: apt update failed"; exit 1; }
 echo "# Full upgrade..."
 apt full-upgrade -y || { echo "ERROR: apt full-upgrade failed"; exit 1; }
 apt autoremove -y && apt autoclean
-# Вместо apt purge ~c -y используем autoremove --purge (работает везде)
 apt autoremove --purge -y
 echo ""
 
@@ -723,7 +718,6 @@ echo "Crontab successfully updated (existing jobs preserved)."
 echo ""
 printf "\\033[33mLast update.\\033[0m\\n"
 apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
-# Заменяем ошибочную команду purge ~c на autoremove --purge
 apt autoremove --purge -y
 read -n1 -s -r -p "Press any key for reboot..."; echo
 echo "REBOOT"
