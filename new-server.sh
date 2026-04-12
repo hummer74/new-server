@@ -98,7 +98,9 @@ echo "# Updating package lists..."
 apt update -y || { echo "ERROR: apt update failed"; exit 1; }
 echo "# Full upgrade..."
 apt full-upgrade -y || { echo "ERROR: apt full-upgrade failed"; exit 1; }
-apt autoremove -y && apt autoclean && apt purge ~c -y
+apt autoremove -y && apt autoclean
+# Вместо apt purge ~c -y используем autoremove --purge (работает везде)
+apt autoremove --purge -y
 echo ""
 
 # --- Swap (пункт 4 – не трогаем) ---
@@ -720,7 +722,9 @@ echo "Crontab successfully updated (existing jobs preserved)."
 
 echo ""
 printf "\\033[33mLast update.\\033[0m\\n"
-apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
+# Заменяем ошибочную команду purge ~c на autoremove --purge
+apt autoremove --purge -y
 read -n1 -s -r -p "Press any key for reboot..."; echo
 echo "REBOOT"
 reboot now
