@@ -34,7 +34,7 @@ fi
 
 echo "Определена ОС: ${PRETTY_NAME:-$NAME $VERSION} (кодовое имя: $DEBIAN_CODENAME)"
 
-# --- APT источники (пункт 2 – теперь удаляем дублирующие файлы) ---
+# --- APT источники (исправлен пункт 2 – удаляем дублирующие файлы + поддержка Debian 10) ---
 echo "Проверяем и исправляем APT-источники..."
 if [ -d /etc/apt/sources.list.d ]; then
     for src in /etc/apt/sources.list.d/*.sources; do
@@ -46,21 +46,35 @@ if [ -d /etc/apt/sources.list.d ]; then
     done
 fi
 
-cat > /etc/apt/sources.list <<EOF
+# Удаляем старые .list файлы, которые могут конфликтовать
+rm -f /etc/apt/sources.list.d/default.list 2>/dev/null || true
+rm -f /etc/apt/sources.list.d/updates.list 2>/dev/null || true
+
+# Генерация sources.list в зависимости от версии Debian
+if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
+    # Debian 10 и старше используют archive (без security)
+    cat > /etc/apt/sources.list <<EOF
+deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
+deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
+# Security updates for oldoldstable are not available in archive, skipping
+EOF
+else
+    # Debian 11+ используют стандартные зеркала
+    cat > /etc/apt/sources.list <<EOF
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main contrib non-free non-free-firmware
 EOF
+fi
 
-# Удаляем дублирующие файлы .list, которые конфликтуют с нашим sources.list
-rm -f /etc/apt/sources.list.d/default.list 2>/dev/null || true
-rm -f /etc/apt/sources.list.d/updates.list 2>/dev/null || true
-
+# Для версий младше 12 убираем non-free-firmware
 if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
     sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
 fi
 
+# Удаляем backports (если вдруг остались)
 sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
+
 echo "APT-источники исправлены."
 
 # --- Обновления (исправлен пункт 3) ---
