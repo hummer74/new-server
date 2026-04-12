@@ -46,9 +46,22 @@ if [ -d /etc/apt/sources.list.d ]; then
     done
 fi
 
-# Удаляем старые .list файлы, которые могут конфликтовать
-rm -f /etc/apt/sources.list.d/default.list 2>/dev/null || true
-rm -f /etc/apt/sources.list.d/updates.list 2>/dev/null || true
+# Для Debian 10 и старше удаляем ВСЕ .list файлы (чтобы не было конфликтующих security-источников)
+if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
+    if [ -d /etc/apt/sources.list.d ]; then
+        mkdir -p /root/apt-backups
+        for listfile in /etc/apt/sources.list.d/*.list; do
+            if [ -f "$listfile" ]; then
+                echo "Удаляем конфликтующий .list файл: $listfile"
+                mv "$listfile" "/root/apt-backups/$(basename "$listfile").bak-$(date +%Y%m%d%H%M%S)"
+            fi
+        done
+    fi
+else
+    # Для более новых версий удаляем только известные конфликтующие файлы
+    rm -f /etc/apt/sources.list.d/default.list 2>/dev/null || true
+    rm -f /etc/apt/sources.list.d/updates.list 2>/dev/null || true
+fi
 
 # Генерация sources.list в зависимости от версии Debian
 if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
