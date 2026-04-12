@@ -232,7 +232,7 @@ echo ""
 
 # --- Установка пакетов (пункт 9 – не трогаем) ---
 echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw, autossh."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh -y
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables python3-systemd fail2ban dos2unix locales screen dnsutils openssl gpg autossh -y
 
 # --- Локали (исправлен пункт 10) ---
 echo "Set UTF-8 locales."
