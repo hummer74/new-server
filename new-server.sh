@@ -448,9 +448,11 @@ safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
 touch "/root/zzz-$safe_name"
 echo ""
 
-# --- UFW (пункт 18 – изменен под split-сеть, включение перенесено в конец) ---
+## --- UFW (пункт 18 – изменен под split-сеть, включение перенесено в конец) ---
 echo "Configuring UFW firewall..."
-CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | sed -E 's/.*://' | sort -u)
+# Извлекаем ТОЛЬКО цифры портов через grep, чтобы отсечь любые скрытые символы и IP-адреса
+CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\n' ' ')
+
 if [ -z "$CURRENT_SSH_PORTS" ]; then
     echo "Warning: Could not determine current SSH ports. Allowing default 22 and 24940."
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
@@ -464,12 +466,13 @@ else
     echo "Current SSH listening ports: $CURRENT_SSH_PORTS"
     for port in $CURRENT_SSH_PORTS; do
         if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-            ufw allow to "$INBOUND_IP" port "$port"/tcp
+            ufw allow to "$INBOUND_IP" port ${port}/tcp
         else
-            ufw allow "$port"/tcp
+            ufw allow ${port}/tcp
         fi
-        echo "Allowed SSH port $port/tcp in UFW."
+        echo "Allowed SSH port $port in UFW."
     done
+    # На всякий случай дублируем дефолтные порты
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
         ufw allow to "$INBOUND_IP" port 22/tcp 2>/dev/null || true
         ufw allow to "$INBOUND_IP" port 24940/tcp 2>/dev/null || true
