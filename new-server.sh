@@ -448,7 +448,7 @@ safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
 touch "/root/zzz-$safe_name"
 echo ""
 
-## --- UFW (пункт 18 – изменен под split-сеть, включение перенесено в конец) ---
+# --- UFW (пункт 18 – изменен под split-сеть, включение перенесено в конец) ---
 echo "Configuring UFW firewall..."
 # Извлекаем ТОЛЬКО цифры портов через grep, чтобы отсечь любые скрытые символы и IP-адреса
 CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\n' ' ')
