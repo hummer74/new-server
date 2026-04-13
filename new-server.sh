@@ -448,39 +448,17 @@ safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
 touch "/root/zzz-$safe_name"
 echo ""
 
-# --- UFW (пункт 18 – исправлен парсинг портов) ---
+# --- UFW (пункт 18 – убран парсинг ss, используются порты из конфига SSH) ---
 echo "Configuring UFW firewall..."
-# Извлекаем цифры портов, удаляем ТОЛЬКО \r (возврат каретки), сортируем и склеиваем в строку
-CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | grep -oE '[0-9]+$' | tr -d '\r' | sort -un | tr '\n' ' ')
-
-if [ -z "$CURRENT_SSH_PORTS" ]; then
-    echo "Warning: Could not determine current SSH ports. Allowing default 22 and 24940."
+# Мы жестко задали порты 22 и 24940 в sshd_config, поэтому просто разрешаем их
+for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port 22 proto tcp
-        ufw allow to "$INBOUND_IP" port 24940 proto tcp
+        ufw allow to "$INBOUND_IP" port "$port" proto tcp
     else
-        ufw allow proto tcp port 22
-        ufw allow proto tcp port 24940
+        ufw allow proto tcp port "$port"
     fi
-else
-    echo "Current SSH listening ports: $CURRENT_SSH_PORTS"
-    for port in $CURRENT_SSH_PORTS; do
-        if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-            ufw allow to "$INBOUND_IP" port "$port" proto tcp
-        else
-            ufw allow proto tcp port "$port"
-        fi
-        echo "Allowed SSH port $port in UFW."
-    done
-    # На всякий случай дублируем дефолтные порты
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port 22 proto tcp 2>/dev/null || true
-        ufw allow to "$INBOUND_IP" port 24940 proto tcp 2>/dev/null || true
-    else
-        ufw allow proto tcp port 22 2>/dev/null || true
-        ufw allow proto tcp port 24940 2>/dev/null || true
-    fi
-fi
+    echo "Allowed SSH port $port in UFW."
+done
 echo "SSH ports are allowed."
 echo ""
 
