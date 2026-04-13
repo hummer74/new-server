@@ -448,10 +448,10 @@ safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
 touch "/root/zzz-$safe_name"
 echo ""
 
-# --- UFW (пункт 18 – надежный синтаксис, включение в конце) ---
+# --- UFW (пункт 18 – исправлен парсинг портов) ---
 echo "Configuring UFW firewall..."
-# Извлекаем ТОЛЬКО цифры портов, жестко отсекая ВСЕ невидимые символы и переносы строк
-CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | grep -oE '[0-9]+$' | tr -d '[:cntrl:]' | sort -u | tr '\n' ' ')
+# Извлекаем цифры портов, удаляем ТОЛЬКО \r (возврат каретки), сортируем и склеиваем в строку
+CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | grep -oE '[0-9]+$' | tr -d '\r' | sort -un | tr '\n' ' ')
 
 if [ -z "$CURRENT_SSH_PORTS" ]; then
     echo "Warning: Could not determine current SSH ports. Allowing default 22 and 24940."
