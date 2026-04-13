@@ -727,8 +727,12 @@ apt autoremove --purge -y
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
     GATEWAY=$(ip -4 route | grep default | awk '{print $3}' | head -n1)
-    IP_BIN=$(command -v ip)
-    cat > /etc/systemd/system/set-outbound-route.service <<EOF
+    
+    if [ -z "$GATEWAY" ] || [ -z "$MAIN_IFACE" ]; then
+        echo "WARNING: Could not detect Gateway or Interface. Skipping outbound route setup."
+    else
+        IP_BIN=$(command -v ip)
+        cat > /etc/systemd/system/set-outbound-route.service <<EOF
 [Unit]
 Description=Set default outbound IP route
 After=network-online.target
@@ -742,9 +746,17 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl enable set-outbound-route.service
-    $IP_BIN route replace default via "$GATEWAY" dev "$MAIN_IFACE" src "$OUTBOUND_IP"
-    echo "Outbound route configured to use $OUTBOUND_IP"
+        systemctl enable set-outbound-route.service
+        
+        # Пытаемся применить маршрут. Если падает - отключаем сервис, чтобы не убить сеть при ребуте
+        if ! $IP_BIN route replace default via "$GATEWAY" dev "$MAIN_IFACE" src "$OUTBOUND_IP" 2>/dev/null; then
+            echo "ERROR: Failed to apply outbound route (invalid gateway for $OUTBOUND_IP?)."
+            echo "Disabling set-outbound-route.service to prevent boot failure."
+            systemctl disable set-outbound-route.service
+        else
+            echo "Outbound route configured to use $OUTBOUND_IP"
+        fi
+    fi
 fi
 
 echo "Enabling UFW..."
