@@ -195,15 +195,17 @@ sysctl --system
 echo ""
 printf "\\033[33m# Configure SSH to listen on ports 22 and 24940.\\033[0m\\n"
 mkdir -p /etc/ssh/sshd_config.d
-SSH_LISTEN_LINE=""
+SSH_LISTEN_LOCAL=""
+SSH_LISTEN_INBOUND=""
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    SSH_LISTEN_LINE="ListenAddress 127.0.0.1
-ListenAddress $INBOUND_IP"
+    SSH_LISTEN_LOCAL="ListenAddress 127.0.0.1"
+    SSH_LISTEN_INBOUND="ListenAddress $INBOUND_IP"
 fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
- $SSH_LISTEN_LINE
+ $SSH_LISTEN_LOCAL
+ $SSH_LISTEN_INBOUND
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
