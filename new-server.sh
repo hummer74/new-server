@@ -49,20 +49,45 @@ if [ "$NUM_IPS" -gt 1 ]; then
         echo "[$i] ${IPV4_LIST[$i]}"
     done
     
-    read -p "Do you want to use Inbound/Outbound split technology? (y/N): " use_split
-    if [[ "$use_split" =~ ^[Yy]$ ]]; then
-        USE_SPLIT_NETWORK="true"
+    # Strict Y/N request
+    while true; do
+        read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split
+        case "$use_split" in
+            [Yy]*) USE_SPLIT_NETWORK="true"; break ;;
+            [Nn]*) break ;;
+            *) echo "Invalid input. Please enter exactly Y or N." ;;
+        esac
+    done
+
+    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
         if [ "$NUM_IPS" -eq 2 ]; then
             # If exactly 2 IPs, auto-assign Outbound
             INBOUND_IP=${IPV4_LIST[0]}
             OUTBOUND_IP=${IPV4_LIST[1]}
             echo "Auto-selected: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"
         else
-            # If 3+ IPs, ask for both to exclude Docker IPs etc.
-            read -p "Select index for INBOUND IP (services will listen here): " in_idx
-            read -p "Select index for OUTBOUND IP (internet access from here): " out_idx
-            INBOUND_IP=${IPV4_LIST[$in_idx]}
-            OUTBOUND_IP=${IPV4_LIST[$out_idx]}
+            # If 3+ IPs, strict numeric request for both
+            MAX_IDX=$((NUM_IPS - 1))
+            
+            while true; do
+                read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
+                if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
+                    INBOUND_IP=${IPV4_LIST[$in_idx]}
+                    break
+                else
+                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
+                fi
+            done
+            
+            while true; do
+                read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
+                if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
+                    OUTBOUND_IP=${IPV4_LIST[$out_idx]}
+                    break
+                else
+                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
+                fi
+            done
         fi
     else
         INBOUND_IP=${IPV4_LIST[0]}
