@@ -294,7 +294,6 @@ else
 fi
 printf "\033[1;33m# Don't forget to add the new SSH port (24940) in the client!\033[0m\n"
 grep --color 'Port ' /etc/ssh/sshd_config.d/99-custom.conf
-read -n1 -s -r -p "Press any key..."; echo
 
 # --- Unattended-upgrades (исправлен пункт 12) ---
 echo ""
