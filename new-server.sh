@@ -99,14 +99,12 @@ fi
 
 # 3. Генерация sources.list в зависимости от версии Debian
 if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
-    # Debian 10 и старше используют archive (без security)
     cat > /etc/apt/sources.list <<EOF
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
 # Security updates for oldoldstable are not available in archive, skipping
 EOF
 else
-    # Debian 11+ используют стандартные зеркала
     cat > /etc/apt/sources.list <<EOF
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
@@ -264,13 +262,18 @@ if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
     F2B_SSHD_LOG="logpath = %(sshd_log)s"
 fi
 
+F2B_BACKEND_LINE=""
+if [ "$DEBIAN_VERSION_ID" -ge 12 ] 2>/dev/null; then
+    F2B_BACKEND_LINE="backend = systemd"
+fi
+
 cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
 bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
- $([ "$DEBIAN_VERSION_ID" -ge 12 ] && echo "backend = systemd")
+ $F2B_BACKEND_LINE
 
 [sshd]
 enabled = true
@@ -465,7 +468,7 @@ done
 echo "SSH ports are allowed."
 echo ""
 
-# --- Reverse SSH tunnel (пункт 19 – добавлен BindAddress) ---
+# --- Reverse SSH tunnel (пункт 19 – убран BIND_LINE для защиты от разрыва EOF) ---
 echo "=============================================="
 echo " Setting up Reverse SSH Tunnel to OpenWrt "
 echo "=============================================="
@@ -531,11 +534,6 @@ else
             esac
         fi
         
-        BIND_LINE=""
-        if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-            BIND_LINE="    -o \"BindAddress=$OUTBOUND_IP\" \\"
-        fi
-        
         cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
@@ -549,7 +547,7 @@ Environment="AUTOSSH_GATETIME=0"
 ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "StrictHostKeyChecking=no" \\
     -o "UserKnownHostsFile=/dev/null" \\
- $BIND_LINE
+    -o "BindAddress=$OUTBOUND_IP" \\
     -o "ServerAliveInterval=60" \\
     -o "ServerAliveCountMax=3" \\
     -o "ExitOnForwardFailure=yes" \\
