@@ -242,7 +242,7 @@ export LANG=ru_RU.UTF-8
 unset LC_ALL LC_CTYPE LC_MESSAGES 2>/dev/null || true
 echo ""
 
-# --- Fail2ban (исправлен пункт 11) ---
+# --- Fail2ban (исправлен пункт 11 + исправлена совместимость Debian 12) ---
 echo "Configuring Fail2ban..."
 systemctl enable fail2ban.service
 cat > /etc/fail2ban/fail2ban.local <<EOF
@@ -253,6 +253,12 @@ EOF
 F2B_IGNORE_IPS="176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.151.139.193 45.38.143.206 217.60.252.204 176.125.243.194 194.58.68.23"
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     F2B_IGNORE_IPS="$INBOUND_IP $OUTBOUND_IP $F2B_IGNORE_IPS"
+fi
+
+# Для Debian 12+ (systemd backend) logpath использовать НЕЛЬЗЯ!
+F2B_SSHD_LOG=""
+if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
+    F2B_SSHD_LOG="logpath = %(sshd_log)s"
 fi
 
 cat > /etc/fail2ban/jail.local <<EOF
@@ -266,7 +272,7 @@ ignoreip = $F2B_IGNORE_IPS
 [sshd]
 enabled = true
 port = 22,24940
-logpath = %(sshd_log)s
+ $F2B_SSHD_LOG
 EOF
 if fail2ban-client -t >/dev/null 2>&1; then
     systemctl restart fail2ban.service
