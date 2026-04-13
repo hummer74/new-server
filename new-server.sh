@@ -608,10 +608,15 @@ command -v curl >/dev/null || { apt-get update && apt-get install -y curl; }
 if ! command -v ufw >/dev/null; then
     apt-get update && apt-get install -y ufw
 fi
-EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
-if [ -z "$EXTERNAL_IP" ]; then
-    echo "Could not automatically determine external IP. Using fallback 127.0.0.1."
-    EXTERNAL_IP="127.0.0.1"
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    EXTERNAL_IP="$INBOUND_IP"
+    echo "Split-network active: using Inbound IP ($EXTERNAL_IP) for proxy link."
+else
+    EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
+    if [ -z "$EXTERNAL_IP" ]; then
+        echo "Could not automatically determine external IP. Using fallback 127.0.0.1."
+        EXTERNAL_IP="127.0.0.1"
+    fi
 fi
 HOST_PORT=8443
 TLS_DOMAIN="github.com"
