@@ -1,6 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+# === Log all output to /root/snikket-install.log ===
+LOG_FILE="/root/snikket-install.log"
+exec 3>&1 4>&2
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "This script must be run as root."
+    exit 1
+fi
+
 # ===== НАСТРОЙТЕ ЭТИ ПЕРЕМЕННЫЕ =====
 DOMAIN="matrix74.ignorelist.com"          # Ваш основной домен
 ADMIN_EMAIL="hummer74rus@gmail.com"       # Email для Let's Encrypt (реальный)
@@ -11,6 +23,27 @@ if [[ "$DOMAIN" == "snikk.example.com" || "$ADMIN_EMAIL" == "admin@example.com" 
     echo "ОШИБКА: Измените DOMAIN и ADMIN_EMAIL в начале скрипта!" >&2
     exit 1
 fi
+
+# --- Detect Debian version ---
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
+    DEBIAN_VERSION_ID="${VERSION_ID:-0}"
+    if [ -z "$VERSION_CODENAME" ] && [ -n "$VERSION" ]; then
+        DEBIAN_CODENAME=$(echo "$VERSION" | sed -n 's/.*(\(.*\)).*/\1/p')
+    else
+        DEBIAN_CODENAME="${VERSION_CODENAME:-unknown}"
+    fi
+else
+    echo "Error: Failed to determine Debian version (/etc/os-release not found)."
+    exit 1
+fi
+
+if [ "$DEBIAN_CODENAME" = "unknown" ]; then
+    echo "Error: Failed to determine Debian codename."
+    exit 1
+fi
+
+echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
 
 echo "=== Установка Snikket ==="
 
@@ -23,9 +56,17 @@ else
     echo "Обнаружен SSH порт: $SSH_PORT"
 fi
 
-# 2. Обновление списка пакетов и установка зависимостей
-apt update && apt upgrade -y
-apt install -y curl ufw dnsutils
+# 2. Обновление списка пакетов и установка зависимостей (Idempotent)
+echo "# Updating package lists and installing dependencies..."
+apt update -y || { echo "ERROR: apt update failed"; exit 1; }
+for pkg in curl ufw dnsutils; do
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+        echo "# Installing $pkg..."
+        apt install -y "$pkg" || { echo "ERROR: Failed to install $pkg"; exit 1; }
+    else
+        echo "# $pkg is already installed."
+    fi
+done
 
 # 3. Проверка DNS
 echo "Проверка DNS записей..."
@@ -57,11 +98,21 @@ else
     check_dns "share"
 fi
 
-# 4. Установка Docker и Docker Compose plugin
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-apt update && apt upgrade -y
-apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+# 4. Установка Docker и Docker Compose plugin (Idempotent)
+echo "# Setting up Docker repository and installing Docker..."
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg 2>/dev/null || true
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $DEBIAN_CODENAME stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt update -y || { echo "ERROR: apt update failed"; exit 1; }
+
+for pkg in docker-ce docker-ce-cli containerd.io docker-compose-plugin; do
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+        echo "# Installing $pkg..."
+        apt install -y "$pkg" || { echo "ERROR: Failed to install $pkg"; exit 1; }
+    else
+        echo "# $pkg is already installed."
+    fi
+done
 systemctl enable --now docker
 
 # 5. Настройка UFW (с учётом двух SSH-портов)
@@ -84,7 +135,7 @@ ufw allow 5349/udp comment "TURN UDP"
 ufw allow 5350/udp comment "TURN UDP alt"
 ufw allow 49152:65535/udp comment "TURN media"
 
-echo "y" | ufw enable
+ufw --force enable
 ufw status verbose
 
 # 6. Подготовка конфигурации Snikket

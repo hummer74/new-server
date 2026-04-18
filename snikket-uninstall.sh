@@ -1,6 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+# === Log all output to /root/snikket-uninstall.log ===
+LOG_FILE="/root/snikket-uninstall.log"
+exec 3>&1 4>&2
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "This script must be run as root."
+    exit 1
+fi
+
 # ===== Удаление Snikket и возврат системы в состояние до установки =====
 # Оставляем: UFW (с правилами SSH, HTTP, HTTPS), fail2ban
 # Удаляем: контейнеры, тома, конфигурацию, специфичные правила UFW, конфиги fail2ban для snikket
@@ -40,14 +52,18 @@ else
     echo "Обнаружен SSH порт: $SSH_PORT"
 fi
 
-# 2. Остановка и удаление контейнеров Snikket
+# 2. Остановка и удаление контейнеров Snikket (Idempotent)
 if [ -d "/etc/snikket" ]; then
-    echo "Останавливаем и удаляем контейнеры Snikket (включая тома)..."
-    cd /etc/snikket
-    docker compose down -v 2>/dev/null || echo -e "${YELLOW}Контейнеры не запущены или docker compose недоступен.${NC}"
-    cd /
+    echo "# Stopping and removing Snikket containers and volumes..."
+    if command -v docker >/dev/null 2>&1 && command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1; then
+        cd /etc/snikket
+        docker compose down -v 2>/dev/null || echo -e "${YELLOW}Containers not running or docker compose unavailable.${NC}"
+        cd - >/dev/null || true
+    else
+        echo -e "${YELLOW}Docker Compose not found, skipping container shutdown.${NC}"
+    fi
 else
-    echo -e "${YELLOW}Директория /etc/snikket не найдена, пропускаем.${NC}"
+    echo -e "${YELLOW}/etc/snikket directory not found, skipping.${NC}"
 fi
 
 # 3. Удаление конфигурационных файлов Snikket
