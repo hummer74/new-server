@@ -622,8 +622,8 @@ else
     fi
 fi
 
-HOST_PORT=8443
-TLS_DOMAIN="github.com"
+HOST_PORT=10443
+TLS_DOMAIN="surstromming.com"
 USERNAME="proxy_user"
 SECRET=$(openssl rand -hex 16)
 TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
