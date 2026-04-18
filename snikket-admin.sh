@@ -21,5 +21,5 @@ if [ -n "$INVITE" ]; then
     echo "Link saved to /root/snikket_url.txt"
 else
     echo "⚠️ Failed to generate invite automatically. Check if $XMPP_SERVICE is running."
-    echo "Try manually: docker compose exec $XMPT_SERVICE create-invite --admin --group default"
+    echo "Try manually: docker compose exec $XMPP_SERVICE create-invite --admin --group default"
 fi
