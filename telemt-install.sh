@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+# === Colors and Logging ===
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -12,12 +13,12 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 SUCCESS=0
 
+# === Rollback Logic ===
 rollback() {
     echo ""
     warn "An error occurred. Rolling back..."
     cd /etc/telemt-docker 2>/dev/null || true
     
-    # Use the detected command if possible, otherwise fallback to docker
     if [ -n "${DOCKER_COMPOSE_CMD:-}" ] && command -v ${DOCKER_COMPOSE_CMD%% *} >/dev/null; then
         $DOCKER_COMPOSE_CMD down --rmi local 2>/dev/null || true
     fi
@@ -25,22 +26,22 @@ rollback() {
     if [ -f /etc/telemt-docker/ufw_port.txt ]; then
         local PORT=$(cat /etc/telemt-docker/ufw_port.txt)
         if command -v ufw >/dev/null && ufw status | grep -q active; then
+            if [ "${USE_SPLIT_NETWORK:-false}" == "true" ] && [ -n "${INBOUND_IP:-}" ]; then
+                ufw delete allow to "$INBOUND_IP" port "$PORT" proto tcp 2>/dev/null || true
+            fi
             ufw delete allow "$PORT/tcp" 2>/dev/null || true
         fi
-        rm -f /etc/telemt-docker/ufw_port.txt
     fi
     rm -rf /etc/telemt-docker
     rm -f /root/tg-proxy_secret.txt
     error "Rollback complete. System is clean."
 }
 
-# Clean cleanup logic: only rollback if SUCCESS is 0
 cleanup() {
     if [ "$SUCCESS" -eq 0 ]; then
         rollback
     fi
 }
-
 trap cleanup EXIT
 
 if [ "$EUID" -ne 0 ]; then
@@ -48,85 +49,102 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if Docker Engine is installed
+# === STEP 1: Dependencies Check (APT) ===
+info "Checking and installing dependencies..."
+apt-get update -qq
+REQUIRED_PKGS="curl openssl xxd ufw ca-certificates gnupg2 software-properties-common"
+for pkg in $REQUIRED_PKGS; do
+    if ! dpkg -l | grep -q "^ii  $pkg "; then
+        info "Installing $pkg..."
+        apt-get install -y "$pkg" >/dev/null
+    fi
+done
+
+# === STEP 2: Network Configuration ===
+USE_SPLIT_NETWORK="false"
+INBOUND_IP=""
+OUTBOUND_IP=""
+
+if [ -f /root/.network_config ]; then
+    source /root/.network_config
+    info "Existing network config loaded (Inbound: $INBOUND_IP)."
+else
+    warn "No network config found at /root/.network_config."
+    read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " choice
+    case "$choice" in 
+      y|Y ) 
+        info "Analyzing network interfaces..."
+        IPS=($(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -vE '^(127\.|172\.)' || true))
+        
+        if [ ${#IPS[@]} -lt 2 ]; then
+            error "Less than 2 public IPv4 addresses found. Falling back to standard mode."
+            USE_SPLIT_NETWORK="false"
+        else
+            echo "Found public IPv4 addresses:"
+            for i in "${!IPS[@]}"; do echo "[$i] ${IPS[$i]}"; done
+            read -p "Select index for INBOUND: " in_idx
+            read -p "Select index for OUTBOUND: " out_idx
+            INBOUND_IP=${IPS[$in_idx]}
+            OUTBOUND_IP=${IPS[$out_idx]}
+            USE_SPLIT_NETWORK="true"
+        fi
+        ;;
+      * ) USE_SPLIT_NETWORK="false" ;;
+    esac
+fi
+
+# === STEP 3: Docker Setup ===
 if ! command -v docker >/dev/null; then
-    warn "Docker Engine not found. Installing..."
-    apt-get update
-    apt-get install -y docker.io
+    info "Installing Docker Engine..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh >/dev/null 2>&1
     systemctl enable --now docker
-    info "Docker Engine installed and started."
+    rm get-docker.sh
 fi
 
-# Ensure docker daemon is actually running
-if ! docker info >/dev/null 2>&1; then
-    error "Docker daemon is not running. Please start it with: systemctl start docker"
-    exit 1
-fi
-
-# Determine Docker Compose command (Supports V1 and V2)
 if command -v docker-compose >/dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
-    info "Using Docker Compose: $DOCKER_COMPOSE_CMD"
 elif docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
-    info "Using Docker Compose: $DOCKER_COMPOSE_CMD"
 else
-    warn "Docker Compose not found. Installing..."
-    apt-get update
-    apt-get install -y docker-compose
+    info "Installing Docker Compose..."
+    apt-get install -y docker-compose >/dev/null
     DOCKER_COMPOSE_CMD="docker-compose"
-    info "Docker Compose installed: $DOCKER_COMPOSE_CMD"
 fi
 
-# Install dependencies
-command -v apparmor_parser >/dev/null || { apt-get update && apt-get install -y apparmor; }
-command -v openssl >/dev/null || { apt-get update && apt-get install -y openssl; }
-command -v xxd >/dev/null || { apt-get update && apt-get install -y xxd; }
-command -v curl >/dev/null || { apt-get update && apt-get install -y curl; }
-if ! command -v ufw >/dev/null; then
-    warn "UFW not found. Installing..."
-    apt-get update && apt-get install -y ufw
+# === STEP 4: Interactive Proxy Configuration ===
+info "--- Proxy Configuration ---"
+if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
+    EXTERNAL_IP="$INBOUND_IP"
+else
+    EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip)
 fi
 
-info "Determining external IP..."
-EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
-if [ -z "$EXTERNAL_IP" ]; then
-    warn "Could not automatically determine external IP"
-    read -p "Enter external IP manually: " EXTERNAL_IP
-    [ -z "$EXTERNAL_IP" ] && { error "No IP provided"; exit 1; }
-fi
-info "External IP: $EXTERNAL_IP"
+# Set default values
+DEFAULT_PORT=10443
+DEFAULT_TLS_DOMAIN="google.com"
+DEFAULT_USERNAME="proxy_admin"
 
-DEFAULT_PORT=8443
-DEFAULT_TLS_DOMAIN="github.com"
-DEFAULT_USERNAME="proxy_user"
-
-read -p "External proxy port (both container and host) [${DEFAULT_PORT}]: " HOST_PORT
+# Interactive input with defaults
+read -p "Enter proxy port [${DEFAULT_PORT}]: " HOST_PORT
 HOST_PORT=${HOST_PORT:-$DEFAULT_PORT}
 
-read -p "TLS masking domain [${DEFAULT_TLS_DOMAIN}]: " TLS_DOMAIN
+read -p "Enter TLS masking domain [${DEFAULT_TLS_DOMAIN}]: " TLS_DOMAIN
 TLS_DOMAIN=${TLS_DOMAIN:-$DEFAULT_TLS_DOMAIN}
 
-read -p "Username [${DEFAULT_USERNAME}]: " USERNAME
+read -p "Enter proxy username [${DEFAULT_USERNAME}]: " USERNAME
 USERNAME=${USERNAME:-$DEFAULT_USERNAME}
 
-info "Generating secret..."
+# === STEP 5: Generate Secrets and Files ===
 SECRET=$(openssl rand -hex 16)
-info "Secret: $SECRET"
-
 TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\n')
-info "Domain hex: $TLS_DOMAIN_HEX"
-
 FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
-info "Full secret: $FULL_SECRET"
 
 INSTALL_DIR="/etc/telemt-docker"
-CONFIG_DIR="$INSTALL_DIR/config"
-mkdir -p "$CONFIG_DIR"
+mkdir -p "$INSTALL_DIR/config"
 cd "$INSTALL_DIR"
-info "Working directory: $INSTALL_DIR"
 
-cat > "$CONFIG_DIR/telemt.toml" <<EOF
+cat > "config/telemt.toml" <<EOF
 [general]
 use_middle_proxy = false
 [general.modes]
@@ -144,9 +162,11 @@ tls_domain = "$TLS_DOMAIN"
 $USERNAME = "$SECRET"
 EOF
 
-chmod -R 777 "$CONFIG_DIR"
+TELEMT_BIND="$HOST_PORT"
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    TELEMT_BIND="$INBOUND_IP:$HOST_PORT"
+fi
 
-# version: '3.3' is used for maximum compatibility with old and new engines
 cat > docker-compose.yml <<EOF
 version: '3.3'
 services:
@@ -155,11 +175,9 @@ services:
     container_name: telemt
     restart: unless-stopped
     ports:
-      - "$HOST_PORT:$HOST_PORT"
-    environment:
-      RUST_LOG: info
+      - "$TELEMT_BIND:$HOST_PORT"
     volumes:
-      - "$CONFIG_DIR:/etc/telemt"
+      - "./config:/etc/telemt"
     command: ["/etc/telemt/telemt.toml"]
     security_opt:
       - no-new-privileges:true
@@ -172,46 +190,33 @@ services:
       - /tmp:rw,nosuid,nodev,noexec,size=16m
     ulimits:
       nofile: 65536
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
 EOF
 
+# === STEP 6: Firewall and Execution ===
 if ufw status | grep -q active; then
-    info "UFW is active. Opening port $HOST_PORT/tcp..."
-    ufw allow "$HOST_PORT/tcp"
-    echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
-else
-    warn "UFW is not active. Port $HOST_PORT will not be opened automatically."
-    echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
+    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+        info "Opening UFW port $HOST_PORT on Inbound IP $INBOUND_IP..."
+        ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
+    else
+        info "Opening UFW port $HOST_PORT globally..."
+        ufw allow "$HOST_PORT/tcp"
+    fi
+    echo "$HOST_PORT" > ufw_port.txt
 fi
 
-info "Starting telemt with $DOCKER_COMPOSE_CMD..."
+info "Starting Telemt container..."
 $DOCKER_COMPOSE_CMD up -d
 
-info "Waiting for container to be ready (up to 30 sec)..."
-for i in {1..30}; do
-    if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
-        break
-    fi
-    sleep 1
-done
-
-if ! docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
-    error "Container telemt failed to start. Check logs: docker logs telemt"
-    exit 1
-fi
-
+# Final Link Generation
 LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
 echo "$LINK" > /root/tg-proxy_secret.txt
-info "✅ Link saved to /root/tg-proxy_secret.txt"
-cat /root/tg-proxy_secret.txt
 
 SUCCESS=1
 echo ""
-info "✅ Deployment complete!"
-echo "Proxy is available on port $HOST_PORT (TCP only, UDP is not used by MTProxy)"
-echo "To view logs: cd $INSTALL_DIR && $DOCKER_COMPOSE_CMD logs -f"
-echo "To stop: cd $INSTALL_DIR && $DOCKER_COMPOSE_CMD down"
+info "✅ Installation finished successfully!"
+info "Proxy User: $USERNAME"
+info "Proxy Port: $HOST_PORT"
+info "TLS Domain: $TLS_DOMAIN"
+info "Connection link saved to /root/tg-proxy_secret.txt"
+echo ""
+cat /root/tg-proxy_secret.txt
