@@ -24,8 +24,10 @@ rollback() {
     fi
 
     if [ -f /etc/telemt-docker/ufw_port.txt ]; then
-        local PORT=$(cat /etc/telemt-docker/ufw_port.txt)
-        if command -v ufw >/dev/null && ufw status | grep -q active; then
+        local PORT
+        PORT=$(cat /etc/telemt-docker/ufw_port.txt)
+        if command -v ufw >/dev/null; then
+            # Удаляем оба возможных варианта правила (глобальное и привязанное к IP)
             if [ "${USE_SPLIT_NETWORK:-false}" == "true" ] && [ -n "${INBOUND_IP:-}" ]; then
                 ufw delete allow to "$INBOUND_IP" port "$PORT" proto tcp 2>/dev/null || true
             fi
@@ -51,12 +53,14 @@ fi
 
 # === STEP 1: Dependencies Check (APT) ===
 info "Checking and installing dependencies..."
-apt-get update -qq
-REQUIRED_PKGS="curl openssl xxd ufw ca-certificates gnupg2 software-properties-common"
+apt-get update -qq || { error "apt-get update failed"; exit 1; }
+
+# Удалён пакет software-properties-common (не требуется для работы скрипта)
+REQUIRED_PKGS="curl openssl xxd ufw ca-certificates gnupg2"
 for pkg in $REQUIRED_PKGS; do
-    if ! dpkg -l | grep -q "^ii  $pkg "; then
+    if ! dpkg -s "$pkg" 2>/dev/null | grep -q '^Status: install ok installed'; then
         info "Installing $pkg..."
-        apt-get install -y "$pkg" >/dev/null
+        apt-get install -y "$pkg" >/dev/null || { error "Failed to install $pkg"; exit 1; }
     fi
 done
 
@@ -74,16 +78,32 @@ else
     case "$choice" in 
       y|Y ) 
         info "Analyzing network interfaces..."
-        IPS=($(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -vE '^(127\.|172\.)' || true))
+        # Получаем только глобальные публичные IPv4 адреса
+        IPS=($(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || true))
         
         if [ ${#IPS[@]} -lt 2 ]; then
-            error "Less than 2 public IPv4 addresses found. Falling back to standard mode."
+            error "Less than 2 global IPv4 addresses found. Falling back to standard mode."
             USE_SPLIT_NETWORK="false"
         else
             echo "Found public IPv4 addresses:"
             for i in "${!IPS[@]}"; do echo "[$i] ${IPS[$i]}"; done
-            read -p "Select index for INBOUND: " in_idx
-            read -p "Select index for OUTBOUND: " out_idx
+            # Проверка корректности ввода индексов
+            while true; do
+                read -p "Select index for INBOUND (0-$((${#IPS[@]}-1))): " in_idx
+                if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -lt ${#IPS[@]} ]; then
+                    break
+                else
+                    warn "Invalid index. Please try again."
+                fi
+            done
+            while true; do
+                read -p "Select index for OUTBOUND (0-$((${#IPS[@]}-1))): " out_idx
+                if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -lt ${#IPS[@]} ]; then
+                    break
+                else
+                    warn "Invalid index. Please try again."
+                fi
+            done
             INBOUND_IP=${IPS[$in_idx]}
             OUTBOUND_IP=${IPS[$out_idx]}
             USE_SPLIT_NETWORK="true"
@@ -108,7 +128,7 @@ elif docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
 else
     info "Installing Docker Compose..."
-    apt-get install -y docker-compose >/dev/null
+    apt-get install -y docker-compose >/dev/null || { error "Failed to install docker-compose"; exit 1; }
     DOCKER_COMPOSE_CMD="docker-compose"
 fi
 
@@ -162,6 +182,9 @@ tls_domain = "$TLS_DOMAIN"
 $USERNAME = "$SECRET"
 EOF
 
+# Защита конфигурационного файла (секретный ключ)
+chmod 600 config/telemt.toml
+
 TELEMT_BIND="$HOST_PORT"
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     TELEMT_BIND="$INBOUND_IP:$HOST_PORT"
@@ -193,19 +216,27 @@ services:
 EOF
 
 # === STEP 6: Firewall and Execution ===
-if ufw status | grep -q active; then
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        info "Opening UFW port $HOST_PORT on Inbound IP $INBOUND_IP..."
-        ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
-    else
-        info "Opening UFW port $HOST_PORT globally..."
-        ufw allow "$HOST_PORT/tcp"
-    fi
-    echo "$HOST_PORT" > ufw_port.txt
+# Добавляем правило UFW независимо от его активности
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    info "Opening UFW port $HOST_PORT on Inbound IP $INBOUND_IP..."
+    ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp 2>/dev/null || true
+else
+    info "Opening UFW port $HOST_PORT globally..."
+    ufw allow "$HOST_PORT/tcp" 2>/dev/null || true
 fi
+# Сохраняем порт для возможного отката
+echo "$HOST_PORT" > ufw_port.txt
 
 info "Starting Telemt container..."
 $DOCKER_COMPOSE_CMD up -d
+
+# Проверка, что контейнер действительно запустился
+sleep 3
+if docker ps --filter "name=telemt" --format '{{.Status}}' | grep -q "Up"; then
+    info "Container telemt is running."
+else
+    warn "Container telemt might not be running. Check 'docker ps -a'."
+fi
 
 # Final Link Generation
 LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
