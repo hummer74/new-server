@@ -250,7 +250,8 @@ echo ""
 
 # --- Install Packages ---
 echo "# Install standard tools, Docker, and security packages..."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd xxd -y
+# Добавлены apparmor и apparmor-utils
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd xxd apparmor apparmor-utils -y
 
 # --- Locales ---
 echo "Set UTF-8 locales."
@@ -466,7 +467,7 @@ for port in 22 24940; do
         # Fixed UFW syntax order
         ufw allow proto tcp to "$INBOUND_IP" port "$port"
     else
-        # Universal syntax for all interfaces
+        # Universal syntax for all interfaces (Исправление ошибки)
         ufw allow "$port"/tcp
     fi
 done
@@ -567,7 +568,7 @@ EOF
     fi
 fi
 
-# --- Interactive Configuration ---
+# --- Interactive Configuration (Интерактив) ---
 echo "Press ENTER to use default values."
 
 read -p "Enter proxy port [default: 443]: " USER_HOST_PORT
@@ -644,7 +645,7 @@ if ufw status | grep -q active; then
         # Fixed UFW syntax order for specific IP
         ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
     else
-        # Universal syntax for all interfaces (исправляет ошибку)
+        # Universal syntax for all interfaces (Исправление ошибки)
         ufw allow "$HOST_PORT"/tcp
     fi
 fi
