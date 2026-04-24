@@ -136,7 +136,6 @@ if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
     cat > /etc/apt/sources.list <<EOF
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
-# Security updates for oldoldstable are not available in archive, skipping
 EOF
 else
     cat > /etc/apt/sources.list <<EOF
@@ -464,7 +463,8 @@ echo ""
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port "$port" proto tcp
+        # Fixed UFW syntax order
+        ufw allow proto tcp to "$INBOUND_IP" port "$port"
     else
         ufw allow proto tcp port "$port"
     fi
@@ -624,7 +624,8 @@ EOF
 
 if ufw status | grep -q active; then
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
+        # Fixed UFW syntax order
+        ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
     else
         ufw allow proto tcp port "$HOST_PORT"
     fi
