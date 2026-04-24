@@ -466,8 +466,7 @@ for port in 22 24940; do
         # Fixed UFW syntax order
         ufw allow proto tcp to "$INBOUND_IP" port "$port"
     else
-        # Universal syntax for all interfaces
-        ufw allow "$port"/tcp
+        ufw allow proto tcp port "$port"
     fi
 done
 echo "SSH ports are allowed in UFW."
@@ -535,20 +534,16 @@ EOF
 fi
 
 # --- Telemt MTProto Proxy ---
-echo "=============================================="
-echo "      Installing Telemt MTProto Proxy         "
-echo "=============================================="
-
+echo "# Installing telemt MTProto proxy..."
 if ! command -v docker >/dev/null; then
-    echo "# Installing Docker..."
     apt-get update && apt-get install -y docker.io docker-compose
     systemctl enable --now docker
 fi
 
 # --- Patch UFW for Docker ---
+echo "Patching UFW to work correctly with Docker..."
 if [ -f /etc/ufw/after.rules ]; then
     if ! grep -q "BEGIN UFW AND DOCKER" /etc/ufw/after.rules; then
-        echo "Patching UFW to work correctly with Docker..."
         cat >> /etc/ufw/after.rules <<'EOF'
 
 # BEGIN UFW AND DOCKER
@@ -567,23 +562,13 @@ EOF
     fi
 fi
 
-# --- Interactive Configuration ---
-echo "Press ENTER to use default values."
-
-read -p "Enter proxy port [default: 443]: " USER_HOST_PORT
-HOST_PORT=${USER_HOST_PORT:-443}
-
-read -p "Enter TLS domain [default: saimaasailing.fi]: " USER_TLS_DOMAIN
-TLS_DOMAIN=${USER_TLS_DOMAIN:-"saimaasailing.fi"}
-
-read -p "Enter proxy username [default: test_user]: " USER_PROXY_NAME
-USERNAME=${USER_PROXY_NAME:-"test_user"}
-
 EXTERNAL_IP="$INBOUND_IP"
+HOST_PORT=443
+TLS_DOMAIN="saimaasailing.fi"
+USERNAME="test_user"
 SECRET=$(openssl rand -hex 16)
 TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\n')
 FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
-
 INSTALL_DIR="/etc/telemt-docker"
 CONFIG_DIR="$INSTALL_DIR/config"
 mkdir -p "$CONFIG_DIR"
@@ -606,10 +591,9 @@ tls_domain = "$TLS_DOMAIN"
 [access.users]
 $USERNAME = "$SECRET"
 EOF
-
 chmod -R 777 "$CONFIG_DIR"
 
-# Force Docker to bind ONLY to Inbound IP if Split Network is active
+# Force Docker to bind ONLY to Inbound IP
 TELEMT_PORT_BIND="$HOST_PORT"
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
@@ -638,27 +622,19 @@ services:
       - /tmp:rw,nosuid,nodev,noexec,size=16m
 EOF
 
-# --- UFW Fix for Proxy Port ---
 if ufw status | grep -q active; then
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        # Fixed UFW syntax order for specific IP
+        # Fixed UFW syntax order
         ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
     else
-        # Universal syntax for all interfaces (исправляет ошибку)
-        ufw allow "$HOST_PORT"/tcp
+        ufw allow proto tcp port "$HOST_PORT"
     fi
 fi
 
 docker-compose up -d
 LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
 echo "$LINK" > /root/tg-proxy_secret.txt
-echo "----------------------------------------------"
-echo "Telemt proxy installed!"
-echo "User: $USERNAME"
-echo "Domain: $TLS_DOMAIN"
-echo "Link: $LINK"
-echo "----------------------------------------------"
-
+echo "Telemt proxy installed. Link: $LINK"
 
 # --- Crontab ---
 CRON_TMP=$(mktemp)
