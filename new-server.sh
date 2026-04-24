@@ -331,7 +331,7 @@ APT::Periodic::AutocleanInterval "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
 
-# Correct Debian-specific origins (Note 2)
+# Correct Debian-specific origins
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
     "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
@@ -540,7 +540,7 @@ if ! command -v docker >/dev/null; then
     systemctl enable --now docker
 fi
 
-# --- Fix Docker vs UFW (Note 3) ---
+# --- Patch UFW for Docker ---
 echo "Patching UFW to work correctly with Docker..."
 if [ -f /etc/ufw/after.rules ]; then
     if ! grep -q "BEGIN UFW AND DOCKER" /etc/ufw/after.rules; then
@@ -642,31 +642,48 @@ echo "*/5 * * * * systemctl reset-failed" >> "$CRON_TMP"
 sort -u "$CRON_TMP" | crontab -
 rm -f "$CRON_TMP"
 
-# --- Outbound Routing Persistence ---
+# --- Outbound Routing Persistence (Policy Based Routing) ---
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
-    # Get gateway specifically for the Outbound IP if possible, else fallback to default
     OUTBOUND_GW=$(ip -4 route show dev "$MAIN_IFACE" | grep default | awk '{print $3}' | head -n1)
     
     if [ -n "$OUTBOUND_GW" ] && [ -n "$MAIN_IFACE" ]; then
         IP_BIN=$(command -v ip)
+        
+        # Ensure 'custom' table exists in rt_tables
+        if ! grep -q "100 custom" /etc/iproute2/rt_tables; then
+            echo "100 custom" >> /etc/iproute2/rt_tables
+        fi
+
         cat > /etc/systemd/system/set-outbound-route.service <<EOF
 [Unit]
-Description=Set default outbound IP route
+Description=Set policy-based routing for Split Network
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
+# 1. Traffic initiated by server uses Outbound IP
 ExecStart=$IP_BIN route replace default via $OUTBOUND_GW dev $MAIN_IFACE src $OUTBOUND_IP
+# 2. Responses to Inbound IP must go back via Inbound IP (Table 100)
+ExecStart=$IP_BIN route flush table 100
+ExecStart=$IP_BIN route add default via $OUTBOUND_GW dev $MAIN_IFACE table 100
+ExecStart=$IP_BIN rule add from $INBOUND_IP table 100
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOF
+        systemctl daemon-reload
         systemctl enable set-outbound-route.service
+        
+        # Apply immediately
         $IP_BIN route replace default via "$OUTBOUND_GW" dev "$MAIN_IFACE" src "$OUTBOUND_IP" || true
-        echo "Outbound route configured to use $OUTBOUND_IP"
+        $IP_BIN route flush table 100 || true
+        $IP_BIN route add default via "$OUTBOUND_GW" dev "$MAIN_IFACE" table 100 || true
+        $IP_BIN rule add from "$INBOUND_IP" table 100 || true
+        
+        echo "Policy-based routing configured (Inbound: $INBOUND_IP, Outbound: $OUTBOUND_IP)"
     fi
 fi
 
