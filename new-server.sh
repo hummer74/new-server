@@ -61,25 +61,29 @@ if [ "$NUM_IPS" -gt 1 ]; then
     done
 
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+        MAX_IDX=$((NUM_IPS - 1))
+        
+        # Always ask for INBOUND index if split network is selected
+        while true; do
+            read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
+            if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
+                INBOUND_IP=${IPV4_LIST[$in_idx]}
+                break
+            else
+                echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
+            fi
+        done
+
         if [ "$NUM_IPS" -eq 2 ]; then
-            # If exactly 2 IPs, auto-assign Outbound
-            INBOUND_IP=${IPV4_LIST[0]}
-            OUTBOUND_IP=${IPV4_LIST[1]}
-            echo "Auto-selected: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"
+            # If exactly 2 IPs, auto-assign Outbound to the remaining index
+            if [ "$in_idx" -eq 0 ]; then
+                OUTBOUND_IP=${IPV4_LIST[1]}
+            else
+                OUTBOUND_IP=${IPV4_LIST[0]}
+            fi
+            echo "Auto-selected OUTBOUND IP: $OUTBOUND_IP"
         else
-            # If 3+ IPs, strict numeric request for both
-            MAX_IDX=$((NUM_IPS - 1))
-            
-            while true; do
-                read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
-                if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
-                    INBOUND_IP=${IPV4_LIST[$in_idx]}
-                    break
-                else
-                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
-                fi
-            done
-            
+            # If 3+ IPs, strict numeric request for Outbound as well
             while true; do
                 read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
                 if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
@@ -326,11 +330,13 @@ APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
+
+# Correct Debian-specific origins (Note 2)
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
-    "${distro_id}:${distro_codename}-security";
-    "${distro_id}ESMApps:${distro_codename}-apps-security";
-    "${distro_id}ESM:${distro_codename}-infra-security";
+    "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+    "origin=Debian,codename=${distro_codename},label=Debian";
+    "origin=Debian,codename=${distro_codename}-updates,label=Debian";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
@@ -513,7 +519,7 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "TCPKeepAlive=yes" \\
     -i $KEY_PATH \\
     -p $ROUTER_PORT \\
-    -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
+    -R %i:127:0:0:1:$LOCAL_SSH_PORT \\
     $ROUTER_USER@$ROUTER_HOST
 Restart=always
 RestartSec=30
@@ -534,12 +540,34 @@ if ! command -v docker >/dev/null; then
     systemctl enable --now docker
 fi
 
+# --- Fix Docker vs UFW (Note 3) ---
+echo "Patching UFW to work correctly with Docker..."
+if [ -f /etc/ufw/after.rules ]; then
+    if ! grep -q "BEGIN UFW AND DOCKER" /etc/ufw/after.rules; then
+        cat >> /etc/ufw/after.rules <<'EOF'
+
+# BEGIN UFW AND DOCKER
+*filter
+:ufw-user-forward - [0:0]
+:DOCKER-USER - [0:0]
+-A DOCKER-USER -j RETURN -s 10.0.0.0/8
+-A DOCKER-USER -j RETURN -s 172.16.0.0/12
+-A DOCKER-USER -j RETURN -s 192.168.0.0/16
+-A DOCKER-USER -j ufw-user-forward
+-A DOCKER-USER -j RETURN
+COMMIT
+# END UFW AND DOCKER
+EOF
+        ufw reload
+    fi
+fi
+
 EXTERNAL_IP="$INBOUND_IP"
 HOST_PORT=443
 TLS_DOMAIN="saimaasailing.fi"
 USERNAME="test_user"
 SECRET=$(openssl rand -hex 16)
-TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
+TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\n')
 FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
 INSTALL_DIR="/etc/telemt-docker"
 CONFIG_DIR="$INSTALL_DIR/config"
