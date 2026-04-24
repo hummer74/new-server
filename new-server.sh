@@ -535,7 +535,7 @@ if ! command -v docker >/dev/null; then
 fi
 
 EXTERNAL_IP="$INBOUND_IP"
-HOST_PORT=24443
+HOST_PORT=443
 TLS_DOMAIN="saimaasailing.fi"
 USERNAME="test_user"
 SECRET=$(openssl rand -hex 16)
