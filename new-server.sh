@@ -640,14 +640,12 @@ services:
 EOF
 
 # --- UFW Fix for Proxy Port ---
-if ufw status | grep -q active; then
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        # Fixed UFW syntax order for specific IP
-        ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
-    else
-        # Universal syntax for all interfaces (Исправление ошибки)
-        ufw allow "$HOST_PORT"/tcp
-    fi
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    # Fixed UFW syntax order for specific IP
+    ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
+else
+    # Universal syntax for all interfaces
+    ufw allow "$HOST_PORT"/tcp
 fi
 
 docker-compose up -d
