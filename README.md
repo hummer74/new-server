@@ -45,14 +45,14 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/he
 ```
 
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail//geminy-tunnel-head.sh)"
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/geminy-tunnel-head.sh)"
 ```
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/geminy-tunnel-tail.sh)"
 ```
 
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail//zai-tunnel-head.sh)"
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-head.sh)"
 ```
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
