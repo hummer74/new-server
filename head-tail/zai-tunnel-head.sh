@@ -71,21 +71,12 @@ if [ -z "$SSH_PORT" ]; then
 fi
 echo "[INFO] Detected/Sets SSH port to: $SSH_PORT"
 
-# Detect AmneziaWG interface (Broader search)
+# Detect AmneziaWG interface (Broader search, non-fatal)
 AWG_IFACE=$(ip -br link show 2>/dev/null | grep -iE 'awg|amneziawg' | awk '{print $1; exit}') || true
 if [ -n "$AWG_IFACE" ]; then
     echo "[INFO] Found AmneziaWG interface: $AWG_IFACE"
 else
     echo "[WARN] AmneziaWG interface not found via standard names."
-fi
-
-# Detect Xray process (More resilient check)
-XRAY_ACTIVE=false
-if pgrep -x xray > /dev/null 2>&1; then
-    XRAY_ACTIVE=true
-    echo "[INFO] Found active Xray process."
-else
-    echo "[WARN] Xray process not found directly."
 fi
 
 echo "[INFO] Proceeding with universal Catch-All routing (Rule 40). This will route ANY outbound traffic from this server to TAIL."
@@ -128,9 +119,15 @@ cat >> /etc/wireguard/wg-up.sh << EOF_EXCL_HOOK
 ip rule add pref 40 lookup tail_out
 
 iptables -t mangle -N TAIL_MARK
+# Protect SSH: mark BOTH outgoing connections (--dport) AND responses to incoming connections (--sport)
 iptables -t mangle -A TAIL_MARK -p tcp --dport $SSH_PORT -j MARK --set-mark 0x2
+iptables -t mangle -A TAIL_MARK -p tcp --sport $SSH_PORT -j MARK --set-mark 0x2
+# Protect DNS: mark queries and responses
 iptables -t mangle -A TAIL_MARK -p udp --dport 53 -j MARK --set-mark 0x2
+iptables -t mangle -A TAIL_MARK -p udp --sport 53 -j MARK --set-mark 0x2
 iptables -t mangle -A TAIL_MARK -p tcp --dport 53 -j MARK --set-mark 0x2
+iptables -t mangle -A TAIL_MARK -p tcp --sport 53 -j MARK --set-mark 0x2
+# Protect the WireGuard tunnel itself
 iptables -t mangle -A TAIL_MARK -o $MAIN_IFACE -d $TAIL_IP -p udp --dport $WG_PORT -j MARK --set-mark 0x2
 iptables -t mangle -A OUTPUT -j TAIL_MARK
 EOF_EXCL_HOOK
