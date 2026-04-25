@@ -1,10 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# --- Configuration ---
 SCRIPT_NAME=$(basename "$0" .sh)
 LOG_FILE="/root/${SCRIPT_NAME}.log"
+
+# --- Init Logging ---
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# --- Checks ---
 if [ "$EUID" -ne 0 ]; then
     echo "[ERROR] Please run as root (sudo)."
     exit 1
@@ -14,17 +18,20 @@ echo "=================================================="
 echo "[INFO] Starting TAIL setup script..."
 echo "=================================================="
 
+# --- 1. Install packages ---
 echo "[1/5] Installing required packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq wireguard iptables
 
+# --- 2. Enable Forwarding ---
 echo "[2/5] Enabling IPv4 forwarding..."
 if ! grep -q "^net.ipv4.ip_forward=1" /etc/sysctl.d/99-tail.conf 2>/dev/null; then
     echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-tail.conf
     sysctl -p /etc/sysctl.d/99-tail.conf > /dev/null
 fi
 
+# --- 3. Generate Keys (Idempotent) ---
 echo "[3/5] Checking/Generating WireGuard keys..."
 PRIV_KEY_FILE="/etc/wireguard/tail_private.key"
 PUB_KEY_FILE="/etc/wireguard/tail_public.key"
@@ -40,16 +47,24 @@ echo "$TAIL_PUB_KEY"
 echo "--------------------------------------------------"
 
 read -rp "[PROMPT] Paste the public key of the HEAD server: " HEAD_PUB_KEY
-if [ -z "$HEAD_PUB_KEY" ]; then echo "[ERROR] HEAD key cannot be empty."; exit 1; fi
+if [ -z "$HEAD_PUB_KEY" ]; then
+    echo "[ERROR] HEAD public key cannot be empty."
+    exit 1
+fi
 
 DEFAULT_PORT=51820
 read -rp "[PROMPT] Enter WireGuard listen port [default: $DEFAULT_PORT]: " WG_PORT
 WG_PORT=${WG_PORT:-$DEFAULT_PORT}
 
+# Detect main interface safely
 MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}') || true
-if [ -z "$MAIN_IFACE" ]; then echo "[ERROR] Main interface not found."; exit 1; fi
+if [ -z "$MAIN_IFACE" ]; then
+    echo "[ERROR] Failed to detect the main network interface."
+    exit 1
+fi
 echo "[INFO] Detected main interface: $MAIN_IFACE"
 
+# --- 4. UFW Compatibility Patch ---
 echo "[4/5] Checking UFW status..."
 UFW_ACTIVE=false
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
@@ -58,6 +73,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     ufw allow "$WG_PORT"/udp comment "WireGuard TAIL Tunnel" || true
 fi
 
+# --- 5. Configure and Start WireGuard ---
 echo "[5/5] Generating wg0.conf and starting service..."
 cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
