@@ -190,7 +190,7 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║         TAIL SERVER — CONFIGURATION SUMMARY         ║"
+echo "║         TAIL SERVER — CONFIGURATION SUMMARY          ║"
 echo "╠══════════════════════════════════════════════════════╣"
 echo "║  Date:       $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "║  Role:       TAIL (Exit Node)"

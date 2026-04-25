@@ -288,7 +288,7 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║         HEAD SERVER — CONFIGURATION SUMMARY         ║"
+echo "║         HEAD SERVER — CONFIGURATION SUMMARY          ║"
 echo "╠══════════════════════════════════════════════════════╣"
 echo "║  Date:       $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "║  Role:       HEAD (Input Node)"
