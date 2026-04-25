@@ -1,73 +1,0 @@
-################################################
-#      TAIL Server Setup (Exit Node)           #
-################################################
-[INFO] Loading existing network configuration...
-[INFO] Network detection: Inbound=45.86.86.195, Outbound=45.86.86.195
-[INFO] Installing required packages...
-Сущ:1 http://security.debian.org/debian-security bookworm-security InRelease
-Сущ:2 http://deb.debian.org/debian bookworm InRelease
-Пол:3 http://deb.debian.org/debian bookworm-updates InRelease [55,4 kB]
-Получено 55,4 kB за 1с (65,3 kB/s)
-Чтение списков пакетов…
-Чтение списков пакетов…
-Построение дерева зависимостей…
-Чтение информации о состоянии…
-Уже установлен пакет iptables самой новой версии (1.8.9-2).
-Уже установлен пакет ufw самой новой версии (0.36.2-1).
-Уже установлен пакет iproute2 самой новой версии (6.1.0-3).
-iproute2 помечен как установленный вручную.
-Будут установлены следующие дополнительные пакеты:
-  wireguard-tools
-Следующие пакеты будут УДАЛЕНЫ:
-  libnss-resolve systemd-resolved
-Следующие НОВЫЕ пакеты будут установлены:
-  resolvconf wireguard wireguard-tools
-Обновлено 0 пакетов, установлено 3 новых пакетов, для удаления отмечено 2 пакетов, и 0 пакетов не обновлено.
-Необходимо скачать 151 kB архивов.
-После данной операции объём занятого дискового пространства уменьшится на 511 kB.
-Пол:1 http://deb.debian.org/debian bookworm/main amd64 resolvconf all 1.91+nmu1 [55,6 kB]
-Пол:2 http://deb.debian.org/debian bookworm/main amd64 wireguard-tools amd64 1.0.20210914-1+b1 [87,6 kB]
-Пол:3 http://deb.debian.org/debian bookworm/main amd64 wireguard all 1.0.20210914-1 [8 216 B]
-Preconfiguring packages ...
-Получено 151 kB за 0с (1 139 kB/s)
-(Чтение базы данных … (Чтение базы данных … 5%(Чтение базы данных … 10%(Чтение базы данных … 15%(Чтение базы данных … 20%(Чтение базы данных … 25%(Чтение базы данных … 30%(Чтение базы данных … 35%(Чтение базы данных … 40%(Чтение базы данных … 45%(Чтение базы данных … 50%(Чтение базы данных … 55%(Чтение базы данных … 60%(Чтение базы данных … 65%(Чтение базы данных … 70%(Чтение базы данных … 75%(Чтение базы данных … 80%(Чтение базы данных … 85%(Чтение базы данных … 90%(Чтение базы данных … 95%(Чтение базы данных … 100%(Чтение базы данных … на данный момент установлено 36408 файлов и каталогов.)
-Удаляется libnss-resolve:amd64 (252.39-1~deb12u1) …
-Удаляется systemd-resolved (252.39-1~deb12u1) …
-Выбор ранее не выбранного пакета resolvconf.
-(Чтение базы данных … (Чтение базы данных … 5%(Чтение базы данных … 10%(Чтение базы данных … 15%(Чтение базы данных … 20%(Чтение базы данных … 25%(Чтение базы данных … 30%(Чтение базы данных … 35%(Чтение базы данных … 40%(Чтение базы данных … 45%(Чтение базы данных … 50%(Чтение базы данных … 55%(Чтение базы данных … 60%(Чтение базы данных … 65%(Чтение базы данных … 70%(Чтение базы данных … 75%(Чтение базы данных … 80%(Чтение базы данных … 85%(Чтение базы данных … 90%(Чтение базы данных … 95%(Чтение базы данных … 100%(Чтение базы данных … на данный момент установлено 36376 файлов и каталогов.)
-Подготовка к распаковке …/resolvconf_1.91+nmu1_all.deb …
-Распаковывается resolvconf (1.91+nmu1) …
-Выбор ранее не выбранного пакета wireguard-tools.
-Подготовка к распаковке …/wireguard-tools_1.0.20210914-1+b1_amd64.deb …
-Распаковывается wireguard-tools (1.0.20210914-1+b1) …
-Выбор ранее не выбранного пакета wireguard.
-Подготовка к распаковке …/wireguard_1.0.20210914-1_all.deb …
-Распаковывается wireguard (1.0.20210914-1) …
-Настраивается пакет resolvconf (1.91+nmu1) …
-Created symlink /etc/systemd/system/sysinit.target.wants/resolvconf.service → /lib/systemd/system/resolvconf.service.
-Created symlink /etc/systemd/system/systemd-resolved.service.wants/resolvconf-pull-resolved.path → /lib/systemd/system/resolvconf-pull-resolved.path.
-Unit /lib/systemd/system/resolvconf-pull-resolved.path is added as a dependency to a non-existent unit systemd-resolved.service.
-Created symlink /etc/systemd/system/systemd-resolved.service.wants/resolvconf-pull-resolved.service → /lib/systemd/system/resolvconf-pull-resolved.service.
-Unit /lib/systemd/system/resolvconf-pull-resolved.service is added as a dependency to a non-existent unit systemd-resolved.service.
-Настраивается пакет wireguard-tools (1.0.20210914-1+b1) …
-wg-quick.target is a disabled or a static unit, not starting it.
-Настраивается пакет wireguard (1.0.20210914-1) …
-Обрабатываются триггеры для man-db (2.11.2-2) …
-Обрабатываются триггеры для dbus (1.14.10-1~deb12u1) …
-Обрабатываются триггеры для libc-bin (2.36-9+deb12u13) …
-Обрабатываются триггеры для resolvconf (1.91+nmu1) …
-[INFO] Generating new WireGuard keys...
-------------------------------------------------
-YOUR TAIL SERVER PUBLIC KEY:
-[32milCvzfAVr5blXW+n2Zq7aTbFIbqhD5bPhaTL3LNfTw4=[0m
-------------------------------------------------
-[INPUT] Configuration required:
-Enter HEAD Server PUBLIC KEY (or leave empty to edit later): Enter WG Listen Port [default: 51820]: [INFO] Enabling IPv4 Forwarding...
-[INFO] Generating /etc/wireguard/wg0.conf...
-[INFO] Updating UFW rules...
-Rule added
-[INFO] Enabling and starting WireGuard...
-Created symlink /etc/systemd/system/multi-user.target.wants/wg-quick@wg0.service → /lib/systemd/system/wg-quick@.service.
-################################################
-# TAIL Setup Complete. Tunnel IP: 10.99.99.1   #
-################################################
