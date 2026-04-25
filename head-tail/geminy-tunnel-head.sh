@@ -43,8 +43,7 @@ read -p "Enter TAIL Server INBOUND IP (Endpoint): " TAIL_ENDPOINT
 read -p "Enter TAIL Server WG Port [default: 51820]: " WG_PORT
 WG_PORT=${WG_PORT:-51820}
 
-# --- 5. Helper Script for Dynamic PBR ---
-# This script detects subnets at runtime to handle Amnezia/Docker changes
+# --- 5. Helper Script for Dynamic PBR (FIXED DETECTION) ---
 echo "[INFO] Creating routing helper script..."
 cat > /etc/wireguard/route-helper.sh << 'EOF'
 #!/bin/bash
@@ -53,15 +52,23 @@ TABLE=200
 GW="10.99.99.1"
 DEV="wg0"
 
-# Detect all private subnets (RFC1918) excluding our own tunnel
-SUBNETS=$(ip -4 route show | grep -oP '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)[0-9\./]+' | grep -v "^10.99.99" | sort -u)
+# Robust detection: Find all private IPv4 addresses (RFC1918) assigned to local interfaces
+# It captures 10.x.x.x, 172.16-31.x.x, and 192.168.x.x
+# Then it converts them to /24 subnets and excludes our tunnel (10.99.99.0)
+SUBNETS=$(ip -4 addr show | grep -oP '(?<=inet\s)(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)[0-9\.]+' | cut -d. -f1-3 | sed 's/$/.0\/24/' | sort -u | grep -v "10.99.99")
 
 if [ "$ACTION" == "up" ]; then
+    # Ensure default route exists in table 200
     ip route add default via "$GW" dev "$DEV" table "$TABLE" 2>/dev/null || true
-    for net in $SUBNETS; do
-        ip rule add from "$net" table "$TABLE" 2>/dev/null || true
-    done
-    echo "[INFO] PBR rules applied for: $SUBNETS"
+    
+    if [ -z "$SUBNETS" ]; then
+        echo "[WARNING] No private subnets detected. Is Amnezia running?"
+    else
+        for net in $SUBNETS; do
+            echo "[INFO] Adding PBR rule for subnet: $net"
+            ip rule add from "$net" table "$TABLE" 2>/dev/null || true
+        done
+    fi
 elif [ "$ACTION" == "down" ]; then
     for net in $SUBNETS; do
         ip rule del from "$net" table "$TABLE" 2>/dev/null || true
