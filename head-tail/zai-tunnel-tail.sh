@@ -19,20 +19,20 @@ echo "[INFO] Starting TAIL setup script..."
 echo "=================================================="
 
 # --- 1. Install packages ---
-echo "[1/4] Installing required packages..."
+echo "[1/5] Installing required packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq wireguard iptables
 
 # --- 2. Enable Forwarding ---
-echo "[2/4] Enabling IPv4 forwarding..."
+echo "[2/5] Enabling IPv4 forwarding..."
 if ! grep -q "^net.ipv4.ip_forward=1" /etc/sysctl.d/99-tail.conf 2>/dev/null; then
     echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-tail.conf
     sysctl -p /etc/sysctl.d/99-tail.conf > /dev/null
 fi
 
 # --- 3. Generate Keys (Idempotent) ---
-echo "[3/4] Checking/Generating WireGuard keys..."
+echo "[3/5] Checking/Generating WireGuard keys..."
 PRIV_KEY_FILE="/etc/wireguard/tail_private.key"
 PUB_KEY_FILE="/etc/wireguard/tail_public.key"
 if [ ! -f "$PRIV_KEY_FILE" ]; then
@@ -64,8 +64,17 @@ if [ -z "$MAIN_IFACE" ]; then
 fi
 echo "[INFO] Detected main interface: $MAIN_IFACE"
 
-# --- 4. Configure and Start WireGuard ---
-echo "[4/4] Generating wg0.conf and starting service..."
+# --- 4. UFW Compatibility Patch ---
+echo "[4/5] Checking UFW status..."
+UFW_ACTIVE=false
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+    UFW_ACTIVE=true
+    echo "[INFO] UFW is active. Allowing WireGuard port $WG_PORT/udp..."
+    ufw allow "$WG_PORT"/udp comment "WireGuard TAIL Tunnel" || true
+fi
+
+# --- 5. Configure and Start WireGuard ---
+echo "[5/5] Generating wg0.conf and starting service..."
 cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
 Address = 10.10.10.1/24
@@ -85,4 +94,7 @@ systemctl restart wg-quick@wg0
 
 echo "=================================================="
 echo "[SUCCESS] TAIL server setup completed successfully."
+if [ "$UFW_ACTIVE" = true ]; then
+    echo "[INFO] UFW rule for WG port applied."
+fi
 echo "=================================================="

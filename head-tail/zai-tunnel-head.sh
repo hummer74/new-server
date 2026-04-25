@@ -64,12 +64,12 @@ if [ -z "$MAIN_IFACE" ]; then
     exit 1
 fi
 
-# Detect SSH port safely (fallback to 22)
-SSH_PORT=$(ss -tlnp 2>/dev/null | grep sshd | awk '{print $4}' | rev | cut -d: -f1 | rev | head -n 1) || true
-if [ -z "$SSH_PORT" ]; then
-    SSH_PORT=22
+# Detect ALL SSH ports safely (fallback to 22)
+mapfile -t SSH_PORTS < <(ss -tlnp 2>/dev/null | grep sshd | awk '{print $4}' | rev | cut -d: -f1 | rev | sort -u) || true
+if [ ${#SSH_PORTS[@]} -eq 0 ]; then
+    SSH_PORTS=(22)
 fi
-echo "[INFO] Detected/Sets SSH port to: $SSH_PORT"
+echo "[INFO] Detected SSH ports: ${SSH_PORTS[*]}"
 
 # Detect AmneziaWG interface (Broader search, non-fatal)
 AWG_IFACE=$(ip -br link show 2>/dev/null | grep -iE 'awg|amneziawg' | awk '{print $1; exit}') || true
@@ -79,7 +79,7 @@ else
     echo "[WARN] AmneziaWG interface not found via standard names."
 fi
 
-echo "[INFO] Proceeding with universal Catch-All routing (Rule 40). This will route ANY outbound traffic from this server to TAIL."
+echo "[INFO] Proceeding with universal Catch-All routing (Rule 40)."
 
 # --- 4. Setup Routing Table ---
 echo "[4/8] Configuring routing table..."
@@ -89,6 +89,14 @@ fi
 
 # --- 5. Generate Routing Hooks ---
 echo "[5/8] Generating OS-level routing hooks..."
+
+# Pre-generate SSH iptables rules to inject into heredoc safely
+SSH_IPTABLES_RULES=""
+for port in "${SSH_PORTS[@]}"; do
+    SSH_IPTABLES_RULES+="iptables -t mangle -A TAIL_MARK -p tcp --dport $port -j MARK --set-mark 0x2\n"
+    SSH_IPTABLES_RULES+="iptables -t mangle -A TAIL_MARK -p tcp --sport $port -j MARK --set-mark 0x2\n"
+done
+
 cat > /etc/wireguard/wg-up.sh << 'EOF_BASE_HOOK'
 #!/bin/bash
 ip route flush table tail_out 2>/dev/null || true
@@ -119,9 +127,8 @@ cat >> /etc/wireguard/wg-up.sh << EOF_EXCL_HOOK
 ip rule add pref 40 lookup tail_out
 
 iptables -t mangle -N TAIL_MARK
-# Protect SSH: mark BOTH outgoing connections (--dport) AND responses to incoming connections (--sport)
-iptables -t mangle -A TAIL_MARK -p tcp --dport $SSH_PORT -j MARK --set-mark 0x2
-iptables -t mangle -A TAIL_MARK -p tcp --sport $SSH_PORT -j MARK --set-mark 0x2
+# Protect ALL detected SSH ports: mark BOTH outgoing connections (--dport) AND responses to incoming connections (--sport)
+ $(echo -e "$SSH_IPTABLES_RULES")
 # Protect DNS: mark queries and responses
 iptables -t mangle -A TAIL_MARK -p udp --dport 53 -j MARK --set-mark 0x2
 iptables -t mangle -A TAIL_MARK -p udp --sport 53 -j MARK --set-mark 0x2
@@ -181,7 +188,7 @@ else
     echo "[DEBUG] Possible causes:"
     echo "  1. Incorrect TAIL IP address."
     echo "  2. Public keys do not match."
-    echo "  3. Port $WG_PORT is blocked by TAIL firewall."
+    echo "  3. Port $WG_PORT is blocked by TAIL firewall (UFW?)."
     systemctl stop wg-quick@wg0
     exit 1
 fi
