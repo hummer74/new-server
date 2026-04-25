@@ -1,25 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_NAME=$(basename "$0" .sh)
+SCRIPT_NAME="tunnel-head"
 LOG_FILE="/root/${SCRIPT_NAME}.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 if [ "$EUID" -ne 0 ]; then
-    echo "[ERROR] Please run as root (sudo)."
+    echo "[ERROR] Please run as root."
     exit 1
 fi
 
 echo "=================================================="
-echo "[INFO] Starting HEAD setup script..."
+echo "[INFO] Starting HEAD setup script (Input Node)..."
 echo "=================================================="
 
 echo "[1/6] Installing required packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq wireguard iptables
+apt-get install -y -qq wireguard iptables iproute2 gawk
 
 echo "[2/6] Checking/Generating WireGuard keys..."
+mkdir -p /etc/wireguard
 PRIV_KEY_FILE="/etc/wireguard/head_private.key"
 PUB_KEY_FILE="/etc/wireguard/head_public.key"
 if [ ! -f "$PRIV_KEY_FILE" ]; then
@@ -30,7 +31,7 @@ HEAD_PUB_KEY=$(cat "$PUB_KEY_FILE")
 
 echo "--------------------------------------------------"
 echo "[PROMPT] Public key of this HEAD server (copy to TAIL):"
-echo "$HEAD_PUB_KEY"
+echo -e "\e[32m$HEAD_PUB_KEY\e[0m"
 echo "--------------------------------------------------"
 
 read -rp "[PROMPT] Enter the IP address of the TAIL server: " TAIL_IP
@@ -43,116 +44,113 @@ DEFAULT_PORT=51820
 read -rp "[PROMPT] Enter WireGuard port of TAIL server [default: $DEFAULT_PORT]: " WG_PORT
 WG_PORT=${WG_PORT:-$DEFAULT_PORT}
 
-echo "[3/6] Auto-detecting Docker parameters..."
-MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}') || true
-if [ -z "$MAIN_IFACE" ]; then echo "[ERROR] Main interface not found."; exit 1; fi
-
-AMN_IFACE="amn0"
-if ip -br link show "$AMN_IFACE" &>/dev/null; then
-    DOCKER_NET=$(ip -4 addr show "$AMN_IFACE" | awk '$1 == "inet" {print $2}')
-    echo "[INFO] Found Amnezia Docker interface: $AMN_IFACE ($DOCKER_NET)"
-else
-    echo "[ERROR] Docker interface $AMN_IFACE not found."
-    exit 1
-fi
-
-read -rp "[PROMPT] Enter Xray listening port [default: 443]: " XRAY_PORT
-XRAY_PORT=${XRAY_PORT:-443}
-
-echo "[4/6] Configuring routing table..."
+echo "[3/6] Configuring routing table..."
 if ! grep -q "^200 tail_out" /etc/iproute2/rt_tables 2>/dev/null; then
     echo "200 tail_out" >> /etc/iproute2/rt_tables
 fi
 
-echo "[5/6] Generating routing hooks..."
-cat > /etc/wireguard/wg-up.sh << EOF
+echo "[4/6] Generating dynamic routing hooks (fwmark)..."
+# --- UP HOOK ---
+cat > /etc/wireguard/wg-up.sh << 'EOF'
 #!/bin/bash
-XRAY_PORT=$XRAY_PORT
-DOCKER_NET="$DOCKER_NET"
+TABLE="tail_out"
+MARK="0x3"
 
-ip route flush table tail_out 2>/dev/null || true
-ip rule del pref 10 2>/dev/null || true
-ip rule del pref 15 2>/dev/null || true
-ip rule del pref 30 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -p tcp --sport \$XRAY_PORT -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 127.0.0.0/8 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 172.16.0.0/12 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 10.0.0.0/8 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 192.168.0.0/16 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -j MARK --set-mark 0x3 2>/dev/null || true
-iptables -t nat -D POSTROUTING -s \$DOCKER_NET -o wg0 -j MASQUERADE 2>/dev/null || true
+# Clean table and add default route via tunnel
+ip route flush table $TABLE 2>/dev/null || true
+ip route add default via 10.10.10.1 dev wg0 table $TABLE
 
-ip route add 10.10.10.0/24 dev wg0 src 10.10.10.2 table tail_out
-ip route add default via 10.10.10.1 table tail_out
+# Remove old rules safely
+while ip rule show | grep -q "fwmark $MARK"; do ip rule del fwmark $MARK 2>/dev/null || true; done
 
-ip rule add pref 10 from 10.10.10.2 lookup main
-ip rule add pref 15 to \$DOCKER_NET lookup main
-ip rule add pref 30 fwmark 0x3 lookup tail_out
+# Add fwmark rule: Marked packets go to table 200
+ip rule add fwmark $MARK lookup $TABLE priority 1000
 
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -p tcp --sport \$XRAY_PORT -j RETURN
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -d 127.0.0.0/8 -j RETURN
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -d 172.16.0.0/12 -j RETURN
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -d 10.0.0.0/8 -j RETURN
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -d 192.168.0.0/16 -j RETURN
-iptables -t mangle -A PREROUTING -i $AMN_IFACE -j MARK --set-mark 0x3
+# Dynamically find VPN subnets (Amnezia/Docker) at runtime
+SUBNETS=$(ip -4 addr show | awk '/inet / {print $2}' | grep -E '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' | grep -v "10.10.10" | cut -d/ -f1 | cut -d. -f1-3 | sed 's/$/.0\/24/' | sort -u)
 
-iptables -t nat -A POSTROUTING -s \$DOCKER_NET -o wg0 -j MASQUERADE
+for net in $SUBNETS; do
+    echo "[INFO] Applying fwmark rules for subnet: $net"
+    # Exclude local traffic from marking (allow internal server communication)
+    iptables -t mangle -A PREROUTING -s "$net" -d 127.0.0.0/8 -j RETURN
+    iptables -t mangle -A PREROUTING -s "$net" -d 10.0.0.0/8 -j RETURN
+    iptables -t mangle -A PREROUTING -s "$net" -d 172.16.0.0/12 -j RETURN
+    iptables -t mangle -A PREROUTING -s "$net" -d 192.168.0.0/16 -j RETURN
+    
+    # Mark the remaining traffic (Internet bound)
+    iptables -t mangle -A PREROUTING -s "$net" -j MARK --set-mark $MARK
+    
+    # Masquerade so TAIL server only sees the WG IP
+    iptables -t nat -A POSTROUTING -s "$net" -o wg0 -j MASQUERADE
+done
 EOF
 
-cat > /etc/wireguard/wg-down.sh << EOF
+# --- DOWN HOOK ---
+cat > /etc/wireguard/wg-down.sh << 'EOF'
 #!/bin/bash
-XRAY_PORT=$XRAY_PORT
-DOCKER_NET="$DOCKER_NET"
+TABLE="tail_out"
+MARK="0x3"
 
-ip rule del pref 10 2>/dev/null || true
-ip rule del pref 15 2>/dev/null || true
-ip rule del pref 30 2>/dev/null || true
-ip route flush table tail_out 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -p tcp --sport \$XRAY_PORT -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 127.0.0.0/8 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 172.16.0.0/12 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 10.0.0.0/8 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -d 192.168.0.0/16 -j RETURN 2>/dev/null || true
-iptables -t mangle -D PREROUTING -i $AMN_IFACE -j MARK --set-mark 0x3 2>/dev/null || true
-iptables -t nat -D POSTROUTING -s \$DOCKER_NET -o wg0 -j MASQUERADE 2>/dev/null || true
+SUBNETS=$(ip -4 addr show | awk '/inet / {print $2}' | grep -E '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' | grep -v "10.10.10" | cut -d/ -f1 | cut -d. -f1-3 | sed 's/$/.0\/24/' | sort -u)
+
+for net in $SUBNETS; do
+    # Remove all added rules silently
+    iptables -t mangle -D PREROUTING -s "$net" -d 127.0.0.0/8 -j RETURN 2>/dev/null || true
+    iptables -t mangle -D PREROUTING -s "$net" -d 10.0.0.0/8 -j RETURN 2>/dev/null || true
+    iptables -t mangle -D PREROUTING -s "$net" -d 172.16.0.0/12 -j RETURN 2>/dev/null || true
+    iptables -t mangle -D PREROUTING -s "$net" -d 192.168.0.0/16 -j RETURN 2>/dev/null || true
+    iptables -t mangle -D PREROUTING -s "$net" -j MARK --set-mark $MARK 2>/dev/null || true
+    iptables -t nat -D POSTROUTING -s "$net" -o wg0 -j MASQUERADE 2>/dev/null || true
+done
+
+while ip rule show | grep -q "fwmark $MARK"; do ip rule del fwmark $MARK 2>/dev/null || true; done
+ip route flush table $TABLE 2>/dev/null || true
 EOF
 
 chmod +x /etc/wireguard/wg-up.sh /etc/wireguard/wg-down.sh
 
-echo "[6/6] Generating wg0.conf..."
+echo "[5/6] Generating wg0.conf..."
 cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
 Address = 10.10.10.2/24
 PrivateKey = $(cat "$PRIV_KEY_FILE")
+# CRITICAL: Do not hijack main routing table
+Table = off
+
 PostUp = /etc/wireguard/wg-up.sh
 PostDown = /etc/wireguard/wg-down.sh
 
 [Peer]
+# TAIL Server
 PublicKey = $TAIL_PUB_KEY
 Endpoint = $TAIL_IP:$WG_PORT
-AllowedIPs = 10.10.10.1/32
+# CRITICAL: Allow all IPs, routing is handled by fwmark
+AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
 
-echo "[INFO] Starting WireGuard tunnel..."
+echo "[6/6] Starting WireGuard tunnel..."
 systemctl daemon-reload
 systemctl enable wg-quick@wg0
 systemctl restart wg-quick@wg0
 
-echo "[INFO] Waiting 5 seconds for handshake..."
+echo "[INFO] Waiting 5 seconds for handshake verification..."
 sleep 5
 
 HANDSHAKE=$(wg show wg0 latest-handshakes 2>/dev/null | awk '{print $2}') || true
 NOW=$(date +%s)
 
 if [ -n "$HANDSHAKE" ] && [ $((NOW - HANDSHAKE)) -lt 120 ]; then
-    echo "[SUCCESS] Handshake received."
+    echo "=================================================="
+    echo "[SUCCESS] Handshake verified! Tunnel is ACTIVE."
+    echo "[SUCCESS] HEAD setup completed."
+    echo "=================================================="
 else
+    echo "=================================================="
     echo "[ERROR] Handshake FAILED."
+    echo "        Check keys, TAIL IP, and TAIL Firewall."
+    echo "        Shutting down tunnel to prevent issues."
+    echo "=================================================="
     systemctl stop wg-quick@wg0
     exit 1
 fi
-
-echo "=================================================="
-echo "[SUCCESS] HEAD setup completed."
-echo "=================================================="
