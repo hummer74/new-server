@@ -572,7 +572,7 @@ fi
 echo "Press ENTER to use default values."
 
 read -p "Enter proxy port [default: 443]: " USER_HOST_PORT
-HOST_PORT=${USER_HOST_PORT:-443}
+HOST_PORT=${USER_HOST_PORT:-10443}
 
 read -p "Enter TLS domain [default: saimaasailing.fi]: " USER_TLS_DOMAIN
 TLS_DOMAIN=${USER_TLS_DOMAIN:-"saimaasailing.fi"}

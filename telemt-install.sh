@@ -142,8 +142,8 @@ fi
 
 # Set default values
 DEFAULT_PORT=10443
-DEFAULT_TLS_DOMAIN="google.com"
-DEFAULT_USERNAME="proxy_admin"
+DEFAULT_TLS_DOMAIN="saimaasailing.fi"
+DEFAULT_USERNAME="test_user"
 
 # Interactive input with defaults
 read -p "Enter proxy port [${DEFAULT_PORT}]: " HOST_PORT
