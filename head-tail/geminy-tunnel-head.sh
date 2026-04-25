@@ -32,7 +32,7 @@ PRIVATE_KEY=$(cat /etc/wireguard/keys/private)
 PUBLIC_KEY=$(cat /etc/wireguard/keys/public)
 
 echo "------------------------------------------------"
-echo -e "YOUR HEAD SERVER PUBLIC KEY:"
+echo "YOUR HEAD SERVER PUBLIC KEY:"
 echo -e "\e[32m$PUBLIC_KEY\e[0m"
 echo "------------------------------------------------"
 
@@ -43,7 +43,7 @@ read -p "Enter TAIL Server INBOUND IP (Endpoint): " TAIL_ENDPOINT
 read -p "Enter TAIL Server WG Port [default: 51820]: " WG_PORT
 WG_PORT=${WG_PORT:-51820}
 
-# --- 5. Helper Script for Dynamic PBR (FIXED DETECTION) ---
+# --- 5. Helper Script for Dynamic PBR ---
 echo "[INFO] Creating routing helper script..."
 cat > /etc/wireguard/route-helper.sh << 'EOF'
 #!/bin/bash
@@ -52,26 +52,25 @@ TABLE=200
 GW="10.99.99.1"
 DEV="wg0"
 
-# Robust detection: Find all private IPv4 addresses (RFC1918) assigned to local interfaces
-# It captures 10.x.x.x, 172.16-31.x.x, and 192.168.x.x
-# Then it converts them to /24 subnets and excludes our tunnel (10.99.99.0)
-SUBNETS=$(ip -4 addr show | grep -oP '(?<=inet\s)(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)[0-9\.]+' | cut -d. -f1-3 | sed 's/$/.0\/24/' | sort -u | grep -v "10.99.99")
+# Find all private subnets assigned to local interfaces (Amnezia, Docker, etc.)
+# Logic: Get inet addrs, filter private ranges, convert to /24 subnets
+SUBNETS=$(ip -4 addr show | awk '/inet / {print $2}' | grep -E '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' | grep -v "10.99.99" | cut -d/ -f1 | cut -d. -f1-3 | sed 's/$/.0\/24/' | sort -u)
 
 if [ "$ACTION" == "up" ]; then
-    # Ensure default route exists in table 200
     ip route add default via "$GW" dev "$DEV" table "$TABLE" 2>/dev/null || true
     
     if [ -z "$SUBNETS" ]; then
-        echo "[WARNING] No private subnets detected. Is Amnezia running?"
+        echo "[WARNING] No private subnets detected. Ensure Amnezia/Docker is running."
     else
         for net in $SUBNETS; do
-            echo "[INFO] Adding PBR rule for subnet: $net"
-            ip rule add from "$net" table "$TABLE" 2>/dev/null || true
+            echo "[INFO] Adding PBR rule: from $net lookup $TABLE"
+            ip rule add from "$net" table "$TABLE" priority 1000 2>/dev/null || true
         done
     fi
 elif [ "$ACTION" == "down" ]; then
-    for net in $SUBNETS; do
-        ip rule del from "$net" table "$TABLE" 2>/dev/null || true
+    # Remove all rules associated with the custom table
+    while ip rule show | grep -q "lookup $TABLE"; do
+        ip rule del lookup "$TABLE"
     done
     ip route del default via "$GW" dev "$DEV" table "$TABLE" 2>/dev/null || true
     echo "[INFO] PBR rules removed."
@@ -92,11 +91,9 @@ Address = 10.99.99.2/24
 PrivateKey = $PRIVATE_KEY
 Table = off
 
-# Use helper to manage PBR rules for VPN/Docker clients
+# PBR and NAT
 PostUp = /etc/wireguard/route-helper.sh up
 PostDown = /etc/wireguard/route-helper.sh down
-
-# MASQUERADE ensures TAIL doesn't need to know internal subnets
 PostUp = iptables -t nat -A POSTROUTING -o wg0 -j MASQUERADE
 PostDown = iptables -t nat -D POSTROUTING -o wg0 -j MASQUERADE
 

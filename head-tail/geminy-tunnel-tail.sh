@@ -16,7 +16,6 @@ OUTBOUND_IP=$INBOUND_IP
 
 if [ -f "$NETWORK_CONFIG" ]; then
     echo "[INFO] Loading existing network configuration..."
-    # Source without set -u because config might have undefined vars
     set +u; source "$NETWORK_CONFIG"; set -u
 fi
 
@@ -38,13 +37,13 @@ PRIVATE_KEY=$(cat /etc/wireguard/keys/private)
 PUBLIC_KEY=$(cat /etc/wireguard/keys/public)
 
 echo "------------------------------------------------"
-echo -e "YOUR TAIL SERVER PUBLIC KEY:"
+echo "YOUR TAIL SERVER PUBLIC KEY:"
 echo -e "\e[32m$PUBLIC_KEY\e[0m"
 echo "------------------------------------------------"
 
 # --- 4. Interactive Inputs ---
 echo "[INPUT] Configuration required:"
-read -p "Enter HEAD Server PUBLIC KEY (or leave empty to edit later): " HEAD_PUBKEY
+read -p "Enter HEAD Server PUBLIC KEY: " HEAD_PUBKEY
 read -p "Enter WG Listen Port [default: 51820]: " WG_PORT
 WG_PORT=${WG_PORT:-51820}
 
@@ -67,14 +66,13 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.99.99.0/24 -j SNAT --to-source $
 
 [Peer]
 # HEAD Server
-PublicKey = ${HEAD_PUBKEY:-INSERT_HEAD_PUBKEY_HERE}
+PublicKey = $HEAD_PUBKEY
 AllowedIPs = 10.99.99.2/32
 EOF
 
 # --- 7. Firewall Configuration ---
 if ufw status | grep -q "Status: active"; then
     echo "[INFO] Updating UFW rules..."
-    # Allow WG port on Inbound IP specifically if split network is used
     ufw allow proto udp to "$INBOUND_IP" port "$WG_PORT" comment 'WireGuard Tunnel'
     ufw reload >/dev/null
 fi

@@ -1,0 +1,39 @@
+head
+root@server-fl4xc3:~# ip rule show
+0:      from all lookup local
+32766:  from all lookup main
+32767:  from all lookup default
+root@server-fl4xc3:~# wg show
+interface: wg0
+  public key: 7WPMK7RO3TJKErQb2Mjg09f208WT4Z9HxowhtshOg0A=
+  private key: (hidden)
+  listening port: 54096
+
+peer: ilCvzfAVr5blXW+n2Zq7aTbFIbqhD5bPhaTL3LNfTw4=
+  endpoint: 45.86.86.195:51820
+  allowed ips: 0.0.0.0/0
+  latest handshake: 1 minute, 28 seconds ago
+  transfer: 552 B received, 3.95 KiB sent
+  persistent keepalive: every 25 seconds
+root@server-fl4xc3:~# 
+
+
+tail
+root@01-ro:~# ip rule show
+0:      from all lookup local
+32766:  from all lookup main
+32767:  from all lookup default
+root@01-ro:~# wg show
+interface: wg0
+  public key: ilCvzfAVr5blXW+n2Zq7aTbFIbqhD5bPhaTL3LNfTw4=
+  private key: (hidden)
+  listening port: 51820
+
+peer: 7WPMK7RO3TJKErQb2Mjg09f208WT4Z9HxowhtshOg0A=
+  endpoint: 217.60.252.204:54096
+  allowed ips: 10.99.99.2/32
+  latest handshake: 1 minute, 50 seconds ago
+  transfer: 988 B received, 276 B sent
+root@01-ro:~# 
+
+
