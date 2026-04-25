@@ -71,12 +71,12 @@ if [ ${#SSH_PORTS[@]} -eq 0 ]; then
 fi
 echo "[INFO] Detected SSH ports: ${SSH_PORTS[*]}"
 
-# Detect AmneziaWG interface (Broader search, non-fatal)
-AWG_IFACE=$(ip -br link show 2>/dev/null | grep -iE 'awg|amneziawg' | awk '{print $1; exit}') || true
+# Strict auto-detection of AmneziaWG kernel interface (awg0, awg1, etc.)
+AWG_IFACE=$(ip -br link show 2>/dev/null | awk '$1 ~ /^awg[0-9]+$/ {print $1; exit}') || true
 if [ -n "$AWG_IFACE" ]; then
     echo "[INFO] Found AmneziaWG interface: $AWG_IFACE"
 else
-    echo "[WARN] AmneziaWG interface not found via standard names."
+    echo "[INFO] AmneziaWG interface not found. Assuming Xray/VLESS mode."
 fi
 
 echo "[INFO] Proceeding with universal Catch-All routing (Rule 40)."
@@ -102,6 +102,7 @@ cat > /etc/wireguard/wg-up.sh << 'EOF_BASE_HOOK'
 ip route flush table tail_out 2>/dev/null || true
 ip rule del pref 10 2>/dev/null || true
 ip rule del pref 20 2>/dev/null || true
+ip rule del pref 25 2>/dev/null || true
 ip rule del pref 30 2>/dev/null || true
 ip rule del pref 40 2>/dev/null || true
 iptables -t mangle -D OUTPUT -j TAIL_MARK 2>/dev/null || true
@@ -117,9 +118,12 @@ ip rule add pref 10 from 10.10.10.2 lookup main
 ip rule add pref 20 fwmark 0x2 lookup main
 EOF_BASE_HOOK
 
-# Dynamically add AWG rule if detected
+# Dynamically add AWG rules if interface is detected
 if [ -n "$AWG_IFACE" ]; then
+    # Rule for incoming AWG traffic to be routed to TAIL (iif)
     echo "ip rule add pref 30 iif $AWG_IFACE lookup tail_out" >> /etc/wireguard/wg-up.sh
+    # CRITICAL FIX: Rule to protect AWG return traffic from being stolen by pref 40 (oif)
+    echo "ip rule add pref 25 oif $AWG_IFACE lookup main" >> /etc/wireguard/wg-up.sh
 fi
 
 cat >> /etc/wireguard/wg-up.sh << EOF_EXCL_HOOK
@@ -127,7 +131,9 @@ cat >> /etc/wireguard/wg-up.sh << EOF_EXCL_HOOK
 ip rule add pref 40 lookup tail_out
 
 iptables -t mangle -N TAIL_MARK
-# Protect ALL detected SSH ports: mark BOTH outgoing connections (--dport) AND responses to incoming connections (--sport)
+# CRITICAL FIX: Protect ALL return traffic of established inbound connections (Fixes Xray/VLESS clients)
+iptables -t mangle -A TAIL_MARK -m conntrack --ctstate ESTABLISHED,RELATED -j MARK --set-mark 0x2
+# Protect ALL detected SSH ports
  $(echo -e "$SSH_IPTABLES_RULES")
 # Protect DNS: mark queries and responses
 iptables -t mangle -A TAIL_MARK -p udp --dport 53 -j MARK --set-mark 0x2
@@ -143,6 +149,7 @@ cat > /etc/wireguard/wg-down.sh << 'EOF_DOWN_HOOK'
 #!/bin/bash
 ip rule del pref 10 2>/dev/null || true
 ip rule del pref 20 2>/dev/null || true
+ip rule del pref 25 2>/dev/null || true
 ip rule del pref 30 2>/dev/null || true
 ip rule del pref 40 2>/dev/null || true
 ip route flush table tail_out 2>/dev/null || true
@@ -197,5 +204,5 @@ fi
 echo "[8/8] Setup finalized."
 echo "=================================================="
 echo "[SUCCESS] HEAD server setup completed successfully."
-echo "[INFO] Universal Catch-All routing applied. All outbound traffic will go to TAIL."
+echo "[INFO] Universal Catch-All routing applied. Return traffic is protected."
 echo "=================================================="

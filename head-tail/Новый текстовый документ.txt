@@ -1,55 +1,52 @@
 head
-root@server-fl4xc3:~# bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-head.sh)"
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  6691  100  6691    0     0  33680      0 --:--:-- --:--:-- --:--:-- 34848
-==================================================
 [INFO] Starting HEAD setup script...
 ==================================================
 [1/8] Installing required packages...
 [2/8] Checking/Generating WireGuard keys...
 --------------------------------------------------
 [PROMPT] Public key of this HEAD server (copy to TAIL):
-CMbdOjBvar2v0kv3ZggPz9uEA5OtJu4sFex3llvZ5g4=
+K75iuRJ2twkzkJtZB60C6Hl5T9lp05iUpbcS91fwzAs=
 --------------------------------------------------
-[PROMPT] Enter the IP address of the TAIL server: 45.86.86.195                                
-[PROMPT] Paste the public key of the TAIL server: bE/YF5ucSyhP9841mWUeEvwyhm7BiH/3ZJvE8S7SkVs=
+[PROMPT] Enter the IP address of the TAIL server: 166.1.36.170
+[PROMPT] Paste the public key of the TAIL server: fs/gLc1S/bEe8BCvNJrWZznnpgcZHz6Uh+2oKaM1P1Q=
 [PROMPT] Enter WireGuard port of TAIL server [default: 51820]: 
 [3/8] Auto-detecting system parameters...
-[INFO] Detected/Sets SSH port to: 22
-[WARN] AmneziaWG interface not found.
-[WARN] Xray service not found.
-[ERROR] No active Amnezia services found. Nothing to route.
+[INFO] Detected SSH ports: 22 24940
+[WARN] AmneziaWG interface not found via standard names.
+[INFO] Proceeding with universal Catch-All routing (Rule 40).
+[4/8] Configuring routing table...
+[5/8] Generating OS-level routing hooks...
+[6/8] Generating wg0.conf...
+[7/8] Starting WireGuard tunnel...
+[INFO] Waiting 5 seconds for cryptographic handshake...
+[SUCCESS] WireGuard Handshake received successfully.
+[8/8] Setup finalized.
+==================================================
+[SUCCESS] HEAD server setup completed successfully.
+[INFO] Universal Catch-All routing applied. All outbound traffic will go to TAIL.
+==================================================
 root@server-fl4xc3:~# 
 
 
 
-
-
-
-
-
-
-tail
-root@01-ro:~# bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  2730  100  2730    0     0   9592      0 --:--:-- --:--:-- --:--:--  9612
-==================================================
 [INFO] Starting TAIL setup script...
 ==================================================
-[1/4] Installing required packages...
-[2/4] Enabling IPv4 forwarding...
-[3/4] Checking/Generating WireGuard keys...
+[1/5] Installing required packages...
+[2/5] Enabling IPv4 forwarding...
+[3/5] Checking/Generating WireGuard keys...
 --------------------------------------------------
 [PROMPT] Public key of this TAIL server (copy to HEAD):
-bE/YF5ucSyhP9841mWUeEvwyhm7BiH/3ZJvE8S7SkVs=
+fs/gLc1S/bEe8BCvNJrWZznnpgcZHz6Uh+2oKaM1P1Q=
 --------------------------------------------------
-[PROMPT] Paste the public key of the HEAD server: CMbdOjBvar2v0kv3ZggPz9uEA5OtJu4sFex3llvZ5g4=
+[PROMPT] Paste the public key of the HEAD server: K75iuRJ2twkzkJtZB60C6Hl5T9lp05iUpbcS91fwzAs=
 [PROMPT] Enter WireGuard listen port [default: 51820]: 
-[INFO] Detected main interface: eth0
-[4/4] Generating wg0.conf and starting service...
+[INFO] Detected main interface: ens3
+[4/5] Checking UFW status...
+[INFO] UFW is active. Allowing WireGuard port 51820/udp...
+Rule added
+[5/5] Generating wg0.conf and starting service...
 ==================================================
 [SUCCESS] TAIL server setup completed successfully.
+[INFO] UFW rule for WG port applied.
 ==================================================
-root@01-ro:~# 
+root@avzd4zva81:~# 
