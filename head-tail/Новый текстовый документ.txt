@@ -1,39 +1,55 @@
 head
-root@server-fl4xc3:~# ip rule show
-0:      from all lookup local
-32766:  from all lookup main
-32767:  from all lookup default
-root@server-fl4xc3:~# wg show
-interface: wg0
-  public key: 7WPMK7RO3TJKErQb2Mjg09f208WT4Z9HxowhtshOg0A=
-  private key: (hidden)
-  listening port: 54096
-
-peer: ilCvzfAVr5blXW+n2Zq7aTbFIbqhD5bPhaTL3LNfTw4=
-  endpoint: 45.86.86.195:51820
-  allowed ips: 0.0.0.0/0
-  latest handshake: 1 minute, 28 seconds ago
-  transfer: 552 B received, 3.95 KiB sent
-  persistent keepalive: every 25 seconds
+root@server-fl4xc3:~# bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-head.sh)"
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  6691  100  6691    0     0  33680      0 --:--:-- --:--:-- --:--:-- 34848
+==================================================
+[INFO] Starting HEAD setup script...
+==================================================
+[1/8] Installing required packages...
+[2/8] Checking/Generating WireGuard keys...
+--------------------------------------------------
+[PROMPT] Public key of this HEAD server (copy to TAIL):
+CMbdOjBvar2v0kv3ZggPz9uEA5OtJu4sFex3llvZ5g4=
+--------------------------------------------------
+[PROMPT] Enter the IP address of the TAIL server: 45.86.86.195                                
+[PROMPT] Paste the public key of the TAIL server: bE/YF5ucSyhP9841mWUeEvwyhm7BiH/3ZJvE8S7SkVs=
+[PROMPT] Enter WireGuard port of TAIL server [default: 51820]: 
+[3/8] Auto-detecting system parameters...
+[INFO] Detected/Sets SSH port to: 22
+[WARN] AmneziaWG interface not found.
+[WARN] Xray service not found.
+[ERROR] No active Amnezia services found. Nothing to route.
 root@server-fl4xc3:~# 
 
 
+
+
+
+
+
+
+
 tail
-root@01-ro:~# ip rule show
-0:      from all lookup local
-32766:  from all lookup main
-32767:  from all lookup default
-root@01-ro:~# wg show
-interface: wg0
-  public key: ilCvzfAVr5blXW+n2Zq7aTbFIbqhD5bPhaTL3LNfTw4=
-  private key: (hidden)
-  listening port: 51820
-
-peer: 7WPMK7RO3TJKErQb2Mjg09f208WT4Z9HxowhtshOg0A=
-  endpoint: 217.60.252.204:54096
-  allowed ips: 10.99.99.2/32
-  latest handshake: 1 minute, 50 seconds ago
-  transfer: 988 B received, 276 B sent
+root@01-ro:~# bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  2730  100  2730    0     0   9592      0 --:--:-- --:--:-- --:--:--  9612
+==================================================
+[INFO] Starting TAIL setup script...
+==================================================
+[1/4] Installing required packages...
+[2/4] Enabling IPv4 forwarding...
+[3/4] Checking/Generating WireGuard keys...
+--------------------------------------------------
+[PROMPT] Public key of this TAIL server (copy to HEAD):
+bE/YF5ucSyhP9841mWUeEvwyhm7BiH/3ZJvE8S7SkVs=
+--------------------------------------------------
+[PROMPT] Paste the public key of the HEAD server: CMbdOjBvar2v0kv3ZggPz9uEA5OtJu4sFex3llvZ5g4=
+[PROMPT] Enter WireGuard listen port [default: 51820]: 
+[INFO] Detected main interface: eth0
+[4/4] Generating wg0.conf and starting service...
+==================================================
+[SUCCESS] TAIL server setup completed successfully.
+==================================================
 root@01-ro:~# 
-
-

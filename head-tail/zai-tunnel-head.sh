@@ -71,27 +71,24 @@ if [ -z "$SSH_PORT" ]; then
 fi
 echo "[INFO] Detected/Sets SSH port to: $SSH_PORT"
 
-# Detect AmneziaWireGuard interface safely
-AWG_IFACE=$(ip -br link show 2>/dev/null | awk '$1 ~ /awg[0-9]+/ {print $1; exit}') || true
+# Detect AmneziaWG interface (Broader search)
+AWG_IFACE=$(ip -br link show 2>/dev/null | grep -iE 'awg|amneziawg' | awk '{print $1; exit}') || true
 if [ -n "$AWG_IFACE" ]; then
     echo "[INFO] Found AmneziaWG interface: $AWG_IFACE"
 else
-    echo "[WARN] AmneziaWG interface not found."
+    echo "[WARN] AmneziaWG interface not found via standard names."
 fi
 
-# Detect Xray service safely
+# Detect Xray process (More resilient check)
 XRAY_ACTIVE=false
-if systemctl is-active --quiet amneziavpn-xray.service 2>/dev/null || systemctl is-active --quiet xray.service 2>/dev/null; then
+if pgrep -x xray > /dev/null 2>&1; then
     XRAY_ACTIVE=true
-    echo "[INFO] Found active Xray service."
+    echo "[INFO] Found active Xray process."
 else
-    echo "[WARN] Xray service not found."
+    echo "[WARN] Xray process not found directly."
 fi
 
-if [ -z "$AWG_IFACE" ] && [ "$XRAY_ACTIVE" = false ]; then
-    echo "[ERROR] No active Amnezia services found. Nothing to route."
-    exit 1
-fi
+echo "[INFO] Proceeding with universal Catch-All routing (Rule 40). This will route ANY outbound traffic from this server to TAIL."
 
 # --- 4. Setup Routing Table ---
 echo "[4/8] Configuring routing table..."
@@ -196,6 +193,5 @@ fi
 echo "[8/8] Setup finalized."
 echo "=================================================="
 echo "[SUCCESS] HEAD server setup completed successfully."
-echo "[INFO] Client traffic is now intercepted at the OS level and routed to TAIL."
-echo "[INFO] Amnezia split-tunneling rules are bypassed. Xray/AWG configs untouched."
+echo "[INFO] Universal Catch-All routing applied. All outbound traffic will go to TAIL."
 echo "=================================================="
