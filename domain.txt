@@ -1,4 +1,4 @@
-RFANCE:		paroissederochefort.fr
+FRANCE:		paroissederochefort.fr
 GERMANY:	bistum-eichstaett.de
 FAINLAND:	saimaasailing.fi
 NETHERLAND:	esac.nl

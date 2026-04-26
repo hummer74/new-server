@@ -36,7 +36,6 @@ echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
 
 # --- STEP 0: Auto-detect IP (Inbound/Outbound) ---
 echo "--- Network Analysis ---"
-# Get all public IPv4 addresses
 IPV4_LIST=($(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1))
 NUM_IPS=${#IPV4_LIST[@]}
 
@@ -50,7 +49,6 @@ if [ "$NUM_IPS" -gt 1 ]; then
         echo "[$i] ${IPV4_LIST[$i]}"
     done
     
-    # Strict Y/N request
     while true; do
         read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split
         case "$use_split" in
@@ -63,7 +61,6 @@ if [ "$NUM_IPS" -gt 1 ]; then
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
         MAX_IDX=$((NUM_IPS - 1))
         
-        # Always ask for INBOUND index if split network is selected
         while true; do
             read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
             if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
@@ -75,7 +72,6 @@ if [ "$NUM_IPS" -gt 1 ]; then
         done
 
         if [ "$NUM_IPS" -eq 2 ]; then
-            # If exactly 2 IPs, auto-assign Outbound to the remaining index
             if [ "$in_idx" -eq 0 ]; then
                 OUTBOUND_IP=${IPV4_LIST[1]}
             else
@@ -83,7 +79,6 @@ if [ "$NUM_IPS" -gt 1 ]; then
             fi
             echo "Auto-selected OUTBOUND IP: $OUTBOUND_IP"
         else
-            # If 3+ IPs, strict numeric request for Outbound as well
             while true; do
                 read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
                 if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
@@ -103,7 +98,6 @@ else
     OUTBOUND_IP=${IPV4_LIST[0]}
 fi
 
-# Save config for future updates
 cat > /root/.network_config <<EOF
 USE_SPLIT_NETWORK=$USE_SPLIT_NETWORK
 INBOUND_IP=$INBOUND_IP
@@ -231,7 +225,7 @@ fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
-$SSH_LISTEN_BLOCK
+ $SSH_LISTEN_BLOCK
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -250,7 +244,6 @@ echo ""
 
 # --- Install Packages ---
 echo "# Install standard tools, Docker, and security packages..."
-# Добавлены apparmor и apparmor-utils
 apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd xxd apparmor apparmor-utils -y
 
 # --- Locales ---
@@ -300,12 +293,12 @@ bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
-$F2B_BACKEND_LINE
+ $F2B_BACKEND_LINE
 
 [sshd]
 enabled = true
 port = 22,24940
-$F2B_SSHD_LOG
+ $F2B_SSHD_LOG
 EOF
 
 if fail2ban-client -t >/dev/null 2>&1; then
@@ -331,7 +324,6 @@ APT::Periodic::AutocleanInterval "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
 
-# Correct Debian-specific origins
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
     "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
@@ -450,7 +442,6 @@ else
     echo "Home directory for opossum not found, skipping downloads."
 fi
 
-# Securely wipe password variable from memory
 unset MASTER_PASSWORD
 
 echo ""
@@ -464,10 +455,8 @@ echo ""
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        # Fixed UFW syntax order
         ufw allow proto tcp to "$INBOUND_IP" port "$port"
     else
-        # Universal syntax for all interfaces (Исправление ошибки)
         ufw allow "$port"/tcp
     fi
 done
@@ -574,8 +563,36 @@ echo "Press ENTER to use default values."
 read -p "Enter proxy port [default: 10443]: " USER_HOST_PORT
 HOST_PORT=${USER_HOST_PORT:-10443}
 
-read -p "Enter TLS domain [default: saimaasailing.fi]: " USER_TLS_DOMAIN
-TLS_DOMAIN=${USER_TLS_DOMAIN:-"saimaasailing.fi"}
+# --- Interactive TLS domain selection ---
+echo ""
+echo "Select TLS domain for MTProto proxy:"
+echo "  1) FRANCE:      paroissederochefort.fr"
+echo "  2) GERMANY:     bistum-eichstaett.de"
+echo "  3) FINLAND:     saimaasailing.fi"
+echo "  4) NETHERLANDS: esac.nl"
+echo "  5) ROMANIA:     bgw.com"
+echo "  6) Custom domain"
+echo ""
+while true; do
+    read -p "Enter choice [1-6, default 3]: " DOMAIN_CHOICE
+    case "${DOMAIN_CHOICE:-3}" in
+        1) TLS_DOMAIN="paroissederochefort.fr"; break ;;
+        2) TLS_DOMAIN="bistum-eichstaett.de"; break ;;
+        3) TLS_DOMAIN="saimaasailing.fi"; break ;;
+        4) TLS_DOMAIN="esac.nl"; break ;;
+        5) TLS_DOMAIN="bgw.com"; break ;;
+        6)
+            while true; do
+                read -p "Enter custom TLS domain: " TLS_DOMAIN
+                if [ -n "$TLS_DOMAIN" ]; then break; fi
+                echo "Domain cannot be empty."
+            done
+            break
+            ;;
+        *) echo "Invalid choice. Enter 1-6." ;;
+    esac
+done
+echo "Selected domain: $TLS_DOMAIN"
 
 read -p "Enter proxy username [default: test_user]: " USER_PROXY_NAME
 USERNAME=${USER_PROXY_NAME:-"test_user"}
@@ -605,12 +622,11 @@ listen = "127.0.0.1:9091"
 [censorship]
 tls_domain = "$TLS_DOMAIN"
 [access.users]
-$USERNAME = "$SECRET"
+ $USERNAME = "$SECRET"
 EOF
 
 chmod -R 777 "$CONFIG_DIR"
 
-# Force Docker to bind ONLY to Inbound IP if Split Network is active
 TELEMT_PORT_BIND="$HOST_PORT"
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
@@ -639,12 +655,9 @@ services:
       - /tmp:rw,nosuid,nodev,noexec,size=16m
 EOF
 
-# --- UFW Fix for Proxy Port ---
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    # Fixed UFW syntax order for specific IP
     ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
 else
-    # Universal syntax for all interfaces
     ufw allow "$HOST_PORT"/tcp
 fi
 
@@ -674,7 +687,6 @@ if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     if [ -n "$OUTBOUND_GW" ] && [ -n "$MAIN_IFACE" ]; then
         IP_BIN=$(command -v ip)
         
-        # Ensure 'custom' table exists in rt_tables
         if ! grep -q "100 custom" /etc/iproute2/rt_tables; then
             echo "100 custom" >> /etc/iproute2/rt_tables
         fi
@@ -687,9 +699,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-# 1. Traffic initiated by server uses Outbound IP
 ExecStart=$IP_BIN route replace default via $OUTBOUND_GW dev $MAIN_IFACE src $OUTBOUND_IP
-# 2. Responses to Inbound IP must go back via Inbound IP (Table 100)
 ExecStart=$IP_BIN route flush table 100
 ExecStart=$IP_BIN route add default via $OUTBOUND_GW dev $MAIN_IFACE table 100
 ExecStart=$IP_BIN rule add from $INBOUND_IP table 100
@@ -701,7 +711,6 @@ EOF
         systemctl daemon-reload
         systemctl enable set-outbound-route.service
         
-        # Apply immediately
         $IP_BIN route replace default via "$OUTBOUND_GW" dev "$MAIN_IFACE" src "$OUTBOUND_IP" || true
         $IP_BIN route flush table 100 || true
         $IP_BIN route add default via "$OUTBOUND_GW" dev "$MAIN_IFACE" table 100 || true
