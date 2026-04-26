@@ -1,4 +1,22 @@
 #!/bin/bash
+# ============================================================
+#  zai-tunnel-head.sh v4 — HEAD Server (Input Node)
+#
+#  Creates a WireGuard tunnel to TAIL exit node.
+#  All Docker container traffic (Amnezia VPN, etc.) is
+#  marked with fwmark 0x3 and routed through TAIL via
+#  policy routing table "tail_out".
+#
+#  v4 key fixes:
+#    - DNAT exclusion: VPN-protocol packets (client<->container)
+#      bypass the tunnel and go directly to the client
+#    - MASQUERADE with -I POSTROUTING 1 (before Docker's rules)
+#    - systemd drop-in: After=docker.service (boot order)
+#    - FORWARD rules in DOCKER-USER chain (survives Docker restarts)
+#    - Real CIDR preservation (not forced /24)
+#    - MTU 1280 for WireGuard+Docker encapsulation
+#    - Config summary logging to /root/tunnel-head.log
+# ============================================================
 set -euo pipefail
 
 LOG="/root/tunnel-head.log"
@@ -17,9 +35,7 @@ cat << 'BANNER' | tee -a "$LOG"
 BANNER
 log "[INFO] $(date '+%Y-%m-%d %H:%M:%S %Z')"
 
-# ----------------------------------------------------------
-[1/9] Installing required packages...
-# ----------------------------------------------------------
+echo "[1/9] Installing required packages..."
 if ! command -v wg &>/dev/null; then
     log "[INFO] Installing WireGuard..."
     apt-get update -qq && apt-get install -y -qq wireguard wireguard-tools
@@ -28,9 +44,7 @@ else
     log "[INFO] WireGuard already installed."
 fi
 
-# ----------------------------------------------------------
-[2/9] Enabling IPv4 forwarding...
-# ----------------------------------------------------------
+echo "[2/9] Enabling IPv4 forwarding..."
 if [ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]; then
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/99-tunnel.conf
     sysctl -p /etc/sysctl.d/99-tunnel.conf >/dev/null
@@ -39,9 +53,7 @@ else
     log "[INFO] net.ipv4.ip_forward already enabled."
 fi
 
-# ----------------------------------------------------------
-[3/9] Checking/Generating WireGuard keys...
-# ----------------------------------------------------------
+echo "[3/9] Checking/Generating WireGuard keys..."
 WG_DIR="/etc/wireguard"
 mkdir -p "$WG_DIR"
 
@@ -73,16 +85,12 @@ read -rp "[PROMPT] Enter WireGuard listen port for TAIL [default: 51820]: " TAIL
 TAIL_PORT="${TAIL_PORT:-51820}"
 log "[INFO] TAIL port: $TAIL_PORT"
 
-# ----------------------------------------------------------
-[4/9] Detecting network configuration...
-# ----------------------------------------------------------
+echo "[4/9] Detecting network configuration..."
 MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}')
 MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+')
 log "[INFO] Main interface: $MAIN_IFACE ($MAIN_IP)"
 
-# ----------------------------------------------------------
-[5/9] Creating wg-up.sh v4 (routing hooks)...
-# ----------------------------------------------------------
+echo "[5/9] Creating wg-up.sh v4 (routing hooks)..."
 cat > "$WG_DIR/wg-up.sh" << 'WGUP'
 #!/bin/bash
 # ============================================================
@@ -163,9 +171,7 @@ WGUP
 chmod +x "$WG_DIR/wg-up.sh"
 log "[INFO] wg-up.sh v4 written."
 
-# ----------------------------------------------------------
-[6/9] Creating wg-down.sh v4 (cleanup hooks)...
-# ----------------------------------------------------------
+echo "[6/9] Creating wg-down.sh v4 (cleanup hooks)..."
 cat > "$WG_DIR/wg-down.sh" << 'WGDOWN'
 #!/bin/bash
 # ============================================================
@@ -208,9 +214,7 @@ WGDOWN
 chmod +x "$WG_DIR/wg-down.sh"
 log "[INFO] wg-down.sh v4 written."
 
-# ----------------------------------------------------------
-[7/9] Creating systemd drop-in (After=docker.service)...
-# ----------------------------------------------------------
+echo "[7/9] Creating systemd drop-in (After=docker.service)..."
 SYSTEMD_DIR="/etc/systemd/system/wg-quick@wg0.service.d"
 mkdir -p "$SYSTEMD_DIR"
 
@@ -222,9 +226,7 @@ SYSTEMD
 systemctl daemon-reload
 log "[INFO] systemd drop-in: After=docker.service docker.socket"
 
-# ----------------------------------------------------------
-[8/9] Generating wg0.conf...
-# ----------------------------------------------------------
+echo "[8/9] Generating wg0.conf..."
 if [ -f "$WG_DIR/wg0.conf" ]; then
     cp "$WG_DIR/wg0.conf" "$WG_DIR/wg0.conf.bak.$(date +%s)"
     log "[INFO] Backed up existing wg0.conf"
@@ -255,9 +257,7 @@ WGCNF
 chmod 600 "$WG_DIR/wg0.conf"
 log "[INFO] wg0.conf written."
 
-# ----------------------------------------------------------
-[9/9] Starting WireGuard tunnel...
-# ----------------------------------------------------------
+echo "[9/9] Starting WireGuard tunnel..."
 systemctl enable wg-quick@wg0
 systemctl start wg-quick@wg0 || {
     log "[ERROR] Failed to start wg-quick@wg0!"

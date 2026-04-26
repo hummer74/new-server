@@ -1,4 +1,18 @@
 #!/bin/bash
+# ============================================================
+#  zai-tunnel-tail.sh v3 — TAIL Server (Exit Node)
+#
+#  Creates a WireGuard tunnel endpoint. Forwards and NATs
+#  traffic from HEAD through this server's Outbound IP.
+#
+#  v3 changes:
+#    - Auto-detect Split Network from /root/.network_config
+#    - SNAT to explicit OUTBOUND_IP when split network
+#    - MASQUERADE fallback for single-IP servers
+#    - PostDown cleanup for both SNAT and MASQUERADE
+#    - MTU 1280
+#    - Config logging to /root/tunnel-tail.log
+# ============================================================
 set -euo pipefail
 
 LOG="/root/tunnel-tail.log"
@@ -17,9 +31,7 @@ cat << 'BANNER' | tee -a "$LOG"
 BANNER
 log "[INFO] $(date '+%Y-%m-%d %H:%M:%S %Z')"
 
-# ----------------------------------------------------------
-[1/8] Installing required packages...
-# ----------------------------------------------------------
+echo "[1/8] Installing required packages..."
 if ! command -v wg &>/dev/null; then
     log "[INFO] Installing WireGuard..."
     apt-get update -qq && apt-get install -y -qq wireguard wireguard-tools
@@ -28,9 +40,7 @@ else
     log "[INFO] WireGuard already installed."
 fi
 
-# ----------------------------------------------------------
-[2/8] Enabling IPv4 forwarding...
-# ----------------------------------------------------------
+echo "[2/8] Enabling IPv4 forwarding..."
 if [ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]; then
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/99-tunnel.conf
     sysctl -p /etc/sysctl.d/99-tunnel.conf >/dev/null
@@ -39,9 +49,7 @@ else
     log "[INFO] net.ipv4.ip_forward already enabled."
 fi
 
-# ----------------------------------------------------------
-[3/8] Checking/Generating WireGuard keys...
-# ----------------------------------------------------------
+echo "[3/8] Checking/Generating WireGuard keys..."
 WG_DIR="/etc/wireguard"
 mkdir -p "$WG_DIR"
 
@@ -70,9 +78,7 @@ read -rp "[PROMPT] Enter WireGuard listen port [default: 51820]: " WG_PORT
 WG_PORT="${WG_PORT:-51820}"
 log "[INFO] WG port: $WG_PORT"
 
-# ----------------------------------------------------------
-[4/8] Detecting network configuration + Split Network...
-# ----------------------------------------------------------
+echo "[4/8] Detecting network configuration + Split Network..."
 MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}')
 MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1)
 log "[INFO] Main interface: $MAIN_IFACE ($MAIN_IP)"
@@ -103,9 +109,7 @@ else
     fi
 fi
 
-# ----------------------------------------------------------
-[5/8] Configuring UFW...
-# ----------------------------------------------------------
+echo "[5/8] Configuring UFW..."
 if command -v ufw &>/dev/null && ufw status | grep -q "active"; then
     ufw allow "$WG_PORT"/udp
     ufw reload
@@ -114,9 +118,7 @@ else
     log "[INFO] UFW not active. Skipping UFW rules."
 fi
 
-# ----------------------------------------------------------
-[6/8] Generating wg0.conf...
-# ----------------------------------------------------------
+echo "[6/8] Generating wg0.conf..."
 if [ -f "$WG_DIR/wg0.conf" ]; then
     cp "$WG_DIR/wg0.conf" "$WG_DIR/wg0.conf.bak.$(date +%s)"
     log "[INFO] Backed up existing wg0.conf"
@@ -161,9 +163,7 @@ WGCNF
 chmod 600 "$WG_DIR/wg0.conf"
 log "[INFO] wg0.conf written. NAT: $NAT_TYPE"
 
-# ----------------------------------------------------------
-[7/8] Starting WireGuard tunnel...
-# ----------------------------------------------------------
+echo "[7/8] Starting WireGuard tunnel..."
 systemctl enable wg-quick@wg0
 systemctl start wg-quick@wg0 || {
     log "[ERROR] Failed to start wg-quick@wg0!"
