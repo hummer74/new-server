@@ -225,7 +225,7 @@ fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
- $SSH_LISTEN_BLOCK
+ ${SSH_LISTEN_BLOCK}
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -293,12 +293,12 @@ bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
- $F2B_BACKEND_LINE
+ ${F2B_BACKEND_LINE}
 
 [sshd]
 enabled = true
 port = 22,24940
- $F2B_SSHD_LOG
+ ${F2B_SSHD_LOG}
 EOF
 
 if fail2ban-client -t >/dev/null 2>&1; then
@@ -435,6 +435,7 @@ if [ -d /home/opossum ]; then
         chmod +x opossum.sh 2>/dev/null || true
         chown -R opossum:opossum /home/opossum
         cd /root
+        rm -f opossum.7z
     else
         echo "/root/opossum.7z not found, skipping opossum setup."
     fi
@@ -523,154 +524,6 @@ EOF
     systemctl start "$SERVICE_INSTANCE"
     echo "Tunnel service $SERVICE_INSTANCE started."
 fi
-
-# --- Telemt MTProto Proxy ---
-echo "=============================================="
-echo "      Installing Telemt MTProto Proxy         "
-echo "=============================================="
-
-if ! command -v docker >/dev/null; then
-    echo "# Installing Docker..."
-    apt-get update && apt-get install -y docker.io docker-compose
-    systemctl enable --now docker
-fi
-
-# --- Patch UFW for Docker ---
-if [ -f /etc/ufw/after.rules ]; then
-    if ! grep -q "BEGIN UFW AND DOCKER" /etc/ufw/after.rules; then
-        echo "Patching UFW to work correctly with Docker..."
-        cat >> /etc/ufw/after.rules <<'EOF'
-
-# BEGIN UFW AND DOCKER
-*filter
-:ufw-user-forward - [0:0]
-:DOCKER-USER - [0:0]
--A DOCKER-USER -j RETURN -s 10.0.0.0/8
--A DOCKER-USER -j RETURN -s 172.16.0.0/12
--A DOCKER-USER -j RETURN -s 192.168.0.0/16
--A DOCKER-USER -j ufw-user-forward
--A DOCKER-USER -j RETURN
-COMMIT
-# END UFW AND DOCKER
-EOF
-        ufw reload
-    fi
-fi
-
-# --- Interactive Configuration (Интерактив) ---
-echo "Press ENTER to use default values."
-
-read -p "Enter proxy port [default: 10443]: " USER_HOST_PORT
-HOST_PORT=${USER_HOST_PORT:-10443}
-
-# --- Interactive TLS domain selection ---
-echo ""
-echo "Select TLS domain for MTProto proxy:"
-echo "  1) FRANCE:      paroissederochefort.fr"
-echo "  2) GERMANY:     bistum-eichstaett.de"
-echo "  3) FINLAND:     saimaasailing.fi"
-echo "  4) NETHERLANDS: esac.nl"
-echo "  5) ROMANIA:     bgw.com"
-echo "  6) Custom domain"
-echo ""
-while true; do
-    read -p "Enter choice [1-6, default 3]: " DOMAIN_CHOICE
-    case "${DOMAIN_CHOICE:-3}" in
-        1) TLS_DOMAIN="paroissederochefort.fr"; break ;;
-        2) TLS_DOMAIN="bistum-eichstaett.de"; break ;;
-        3) TLS_DOMAIN="saimaasailing.fi"; break ;;
-        4) TLS_DOMAIN="esac.nl"; break ;;
-        5) TLS_DOMAIN="bgw.com"; break ;;
-        6)
-            while true; do
-                read -p "Enter custom TLS domain: " TLS_DOMAIN
-                if [ -n "$TLS_DOMAIN" ]; then break; fi
-                echo "Domain cannot be empty."
-            done
-            break
-            ;;
-        *) echo "Invalid choice. Enter 1-6." ;;
-    esac
-done
-echo "Selected domain: $TLS_DOMAIN"
-
-read -p "Enter proxy username [default: test_user]: " USER_PROXY_NAME
-USERNAME=${USER_PROXY_NAME:-"test_user"}
-
-EXTERNAL_IP="$INBOUND_IP"
-SECRET=$(openssl rand -hex 16)
-TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\n')
-FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
-
-INSTALL_DIR="/etc/telemt-docker"
-CONFIG_DIR="$INSTALL_DIR/config"
-mkdir -p "$CONFIG_DIR"
-cd "$INSTALL_DIR"
-
-cat > "$CONFIG_DIR/telemt.toml" <<EOF
-[general]
-use_middle_proxy = false
-[general.modes]
-classic = false
-secure = false
-tls = true
-[server]
-port = $HOST_PORT
-[server.api]
-enabled = true
-listen = "127.0.0.1:9091"
-[censorship]
-tls_domain = "$TLS_DOMAIN"
-[access.users]
- $USERNAME = "$SECRET"
-EOF
-
-chmod -R 777 "$CONFIG_DIR"
-
-TELEMT_PORT_BIND="$HOST_PORT"
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
-fi
-
-cat > docker-compose.yml <<EOF
-version: '3.3'
-services:
-  telemt:
-    image: whn0thacked/telemt-docker:latest
-    container_name: telemt
-    restart: unless-stopped
-    ports:
-      - "$TELEMT_PORT_BIND:$HOST_PORT"
-    volumes:
-      - "$CONFIG_DIR:/etc/telemt"
-    command: ["/etc/telemt/telemt.toml"]
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
-    tmpfs:
-      - /tmp:rw,nosuid,nodev,noexec,size=16m
-EOF
-
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    ufw allow proto tcp to "$INBOUND_IP" port "$HOST_PORT"
-else
-    ufw allow "$HOST_PORT"/tcp
-fi
-
-docker-compose up -d
-LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
-echo "$LINK" > /root/tg-proxy_secret.txt
-echo "----------------------------------------------"
-echo "Telemt proxy installed!"
-echo "User: $USERNAME"
-echo "Domain: $TLS_DOMAIN"
-echo "Link: $LINK"
-echo "----------------------------------------------"
-
 
 # --- Crontab ---
 CRON_TMP=$(mktemp)
