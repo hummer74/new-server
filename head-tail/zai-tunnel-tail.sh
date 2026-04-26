@@ -1,12 +1,15 @@
 #!/bin/bash
 # ============================================================
-#  zai-tunnel-tail.sh v3 — TAIL Server (Exit Node)
+#  zai-tunnel-tail.sh v4 — TAIL Server (Exit Node)
 #
 #  Creates a WireGuard tunnel endpoint. Forwards and NATs
 #  traffic from HEAD through this server's Outbound IP.
 #
-#  v3 changes:
-#    - Auto-detect Split Network from /root/.network_config
+#  v4 changes:
+#    - Self-sufficient split network detection (no dependency
+#      on new-server.sh): auto-detects multiple IPs and asks
+#      user to choose OUTBOUND IP when .network_config missing
+#    - Creates /root/.network_config automatically
 #    - SNAT to explicit OUTBOUND_IP when split network
 #    - MASQUERADE fallback for single-IP servers
 #    - PostDown cleanup for both SNAT and MASQUERADE
@@ -25,7 +28,7 @@ log() {
 cat << 'BANNER' | tee -a "$LOG"
 
 ============================================================
-  zai-tunnel-tail.sh v3 — TAIL (Exit Node)
+  zai-tunnel-tail.sh v4 — TAIL (Exit Node)
   WireGuard tunnel endpoint with Outbound IP NAT
 ============================================================
 BANNER
@@ -98,12 +101,46 @@ if [ -f /root/.network_config ]; then
         log "[INFO] Single IP mode. Using MASQUERADE."
     fi
 else
-    # Fallback: check if interface has multiple IPs
-    IP_COUNT=$(ip -4 addr show dev "$MAIN_IFACE" | grep -c 'inet ' || true)
-    if [ "$IP_COUNT" -gt 1 ]; then
-        log "[WARN] Multiple IPs on $MAIN_IFACE but no .network_config found!"
-        log "[WARN] MASQUERADE will use primary IP (may not be desired)."
-        log "[WARN] Run new-server.sh first for proper split network setup."
+    # No .network_config — auto-detect and ask
+    IP_LIST=($(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | cut -d/ -f1))
+    NUM_IPS=${#IP_LIST[@]}
+
+    if [ "$NUM_IPS" -gt 1 ]; then
+        log "[INFO] .network_config not found. Multiple IPs on $MAIN_IFACE:"
+        for i in "${!IP_LIST[@]}"; do
+            log "[INFO]   [$i] ${IP_LIST[$i]}"
+        done
+
+        while true; do
+            read -rp "[PROMPT] Select index of OUTBOUND IP for SNAT (0-$((NUM_IPS-1)), or press Enter for MASQUERADE): " out_idx
+            if [ -z "$out_idx" ]; then
+                log "[INFO] MASQUERADE mode (primary IP $MAIN_IP)."
+                break
+            fi
+            if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -lt "$NUM_IPS" ]; then
+                SNAT_IP="${IP_LIST[$out_idx]}"
+                USE_SNAT="true"
+                log "[INFO] SNAT -> $SNAT_IP"
+
+                # Determine INBOUND (the other IP, or MAIN_IP)
+                INBOUND_IP="$MAIN_IP"
+                if [ "$NUM_IPS" -eq 2 ]; then
+                    OTHER=$((out_idx == 0 ? 1 : 0))
+                    INBOUND_IP="${IP_LIST[$OTHER]}"
+                fi
+
+                # Save for future use
+                cat > /root/.network_config <<NETCFG
+USE_SPLIT_NETWORK=true
+INBOUND_IP=$INBOUND_IP
+OUTBOUND_IP=$SNAT_IP
+NETCFG
+                log "[INFO] Saved to /root/.network_config"
+                break
+            else
+                echo "Invalid index. Enter 0-$((NUM_IPS-1)) or press Enter."
+            fi
+        done
     else
         log "[INFO] Single IP on $MAIN_IFACE. Using MASQUERADE."
     fi
