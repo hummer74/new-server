@@ -1,22 +1,4 @@
 #!/bin/bash
-# ============================================================
-#  zai-tunnel-head.sh v4 — HEAD Server (Input Node)
-#
-#  Creates a WireGuard tunnel to TAIL exit node.
-#  All Docker container traffic (Amnezia VPN, etc.) is
-#  marked with fwmark 0x3 and routed through TAIL via
-#  policy routing table "tail_out".
-#
-#  v4 key fixes:
-#    - DNAT exclusion: VPN-protocol packets (client<->container)
-#      bypass the tunnel and go directly to the client
-#    - MASQUERADE with -I POSTROUTING 1 (before Docker's rules)
-#    - systemd drop-in: After=docker.service (boot order)
-#    - FORWARD rules in DOCKER-USER chain (survives Docker restarts)
-#    - Real CIDR preservation (not forced /24)
-#    - MTU 1280 for WireGuard+Docker encapsulation
-#    - Config summary logging to /root/tunnel-head.log
-# ============================================================
 set -euo pipefail
 
 LOG="/root/tunnel-head.log"

@@ -1,18 +1,4 @@
 #!/bin/bash
-# ============================================================
-#  zai-tunnel-tail.sh v3 — TAIL Server (Exit Node)
-#
-#  Creates a WireGuard tunnel endpoint. Forwards and NATs
-#  traffic from HEAD through this server's Outbound IP.
-#
-#  v3 changes:
-#    - Auto-detect Split Network from /root/.network_config
-#    - SNAT to explicit OUTBOUND_IP when split network
-#    - MASQUERADE fallback for single-IP servers
-#    - PostDown cleanup for both SNAT and MASQUERADE
-#    - MTU 1280
-#    - Config logging to /root/tunnel-tail.log
-# ============================================================
 set -euo pipefail
 
 LOG="/root/tunnel-tail.log"
