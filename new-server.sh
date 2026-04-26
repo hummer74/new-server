@@ -225,7 +225,7 @@ fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
- ${SSH_LISTEN_BLOCK}
+$SSH_LISTEN_BLOCK
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -293,12 +293,12 @@ bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
- ${F2B_BACKEND_LINE}
+$F2B_BACKEND_LINE
 
 [sshd]
 enabled = true
 port = 22,24940
- ${F2B_SSHD_LOG}
+$F2B_SSHD_LOG
 EOF
 
 if fail2ban-client -t >/dev/null 2>&1; then

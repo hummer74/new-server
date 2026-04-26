@@ -1,5 +1,5 @@
-FRANCE:		paroissederochefort.fr
-GERMANY:	bistum-eichstaett.de
-FAINLAND:	saimaasailing.fi
-NETHERLAND:	esac.nl
-ROMANIA:	bgw.com
+FRANCE:         paroissederochefort.fr
+GERMANY:        bistum-eichstaett.de
+FINLAND:        saimaasailing.fi
+NETHERLAND:     esac.nl
+ROMANIA:        bgw.com
