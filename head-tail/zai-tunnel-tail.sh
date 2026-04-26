@@ -202,7 +202,7 @@ log "[INFO] wg0.conf written. NAT: $NAT_TYPE"
 
 echo "[7/8] Starting WireGuard tunnel..."
 systemctl enable wg-quick@wg0
-systemctl start wg-quick@wg0 || {
+systemctl restart wg-quick@wg0 || {
     log "[ERROR] Failed to start wg-quick@wg0!"
     log "[ERROR] Check: journalctl -u wg-quick@wg0 --no-pager -n 30"
     exit 1
