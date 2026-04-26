@@ -5,6 +5,10 @@ set -euo pipefail
 #  zai-tunnel-head.sh  —  HEAD (Input Node)
 #  Receives Amnezia VPN clients, routes their traffic
 #  through WireGuard tunnel to TAIL exit node.
+#
+#  v3 — fixes:
+#    - Boot order: wg0 starts AFTER Docker (systemd drop-in)
+#    - FORWARD rules in DOCKER-USER (survives Docker restarts)
 # ============================================================
 
 SCRIPT_NAME="tunnel-head"
@@ -27,16 +31,16 @@ echo "[INFO] Starting HEAD setup script (Input Node)..."
 echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "=================================================="
 
-# ---- [1/7] Install packages ----
+# ---- [1/8] Install packages ----
 echo ""
-echo "[1/7] Installing required packages..."
+echo "[1/8] Installing required packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq wireguard iptables iproute2 gawk
 
-# ---- [2/7] Generate/check WireGuard keys ----
+# ---- [2/8] Generate/check WireGuard keys ----
 echo ""
-echo "[2/7] Checking/Generating WireGuard keys..."
+echo "[2/8] Checking/Generating WireGuard keys..."
 mkdir -p /etc/wireguard
 PRIV_KEY_FILE="/etc/wireguard/head_private.key"
 PUB_KEY_FILE="/etc/wireguard/head_public.key"
@@ -67,9 +71,9 @@ DEFAULT_PORT=51820
 read -rp "[PROMPT] Enter WireGuard port of TAIL server [default: $DEFAULT_PORT]: " WG_PORT
 WG_PORT=${WG_PORT:-$DEFAULT_PORT}
 
-# ---- [3/7] Configure routing table ----
+# ---- [3/8] Configure routing table ----
 echo ""
-echo "[3/7] Configuring routing table..."
+echo "[3/8] Configuring routing table..."
 if ! grep -q "^200 tail_out" /etc/iproute2/rt_tables 2>/dev/null; then
     echo "200 tail_out" >> /etc/iproute2/rt_tables
     echo "[INFO] Added routing table 'tail_out' (id 200)."
@@ -77,9 +81,9 @@ else
     echo "[INFO] Routing table 'tail_out' already exists."
 fi
 
-# ---- [4/7] Generate wg-up.sh ----
+# ---- [4/8] Generate wg-up.sh ----
 echo ""
-echo "[4/7] Generating dynamic routing hooks (fwmark)..."
+echo "[4/8] Generating dynamic routing hooks (fwmark)..."
 
 # Backup existing hooks
 for f in wg-up.sh wg-down.sh; do
@@ -93,6 +97,11 @@ cat > /etc/wireguard/wg-up.sh << 'HOOK_EOF'
 # ============================================================
 #  wg-up.sh — runs as PostUp when wg0 starts
 #  Marks Docker/VPN subnet traffic for policy routing -> wg0
+#
+#  IMPORTANT: This script is called AFTER Docker is started
+#  (enforced by systemd drop-in: After=docker.service).
+#  Docker bridge IPs (172.17.0.1/16, etc.) are guaranteed
+#  to exist at this point.
 # ============================================================
 TABLE="tail_out"
 MARK="0x3"
@@ -118,8 +127,11 @@ SUBNETS=$(ip -4 addr show | awk '/inet / {print $2}' | grep -E '^(10\.|172\.(1[6
 
 if [ -z "$SUBNETS" ]; then
     echo "[wg-up] WARNING: No private-range subnets detected!"
-    echo "[wg-up] If Docker/Amnezia is not running yet, restart wg0 after starting them:"
+    echo "[wg-up] Docker may not be running. Re-run later:"
     echo "[wg-up]   systemctl restart wg-quick@wg0"
+else
+    echo "[wg-up] Detected subnets:"
+    echo "$SUBNETS" | while read line; do echo "[wg-up]   $line"; done
 fi
 
 # --- 3. Apply mangle + nat rules for each detected subnet ---
@@ -145,15 +157,23 @@ for entry in $SUBNETS; do
 done
 
 # --- 4. Allow forwarded traffic through wg0 ---
-# (Docker handles docker0<->eth0; we handle wg0 explicitly)
-iptables -I FORWARD -i wg0 -j ACCEPT
-iptables -I FORWARD -o wg0 -j ACCEPT
-echo "[wg-up] FORWARD rules: allow traffic via wg0"
+# DOCKER-USER chain: Docker never flushes this chain, so our rules
+# survive Docker restarts/reloads. If DOCKER-USER doesn't exist
+# (no Docker installed), fall back to FORWARD chain directly.
+if iptables -L DOCKER-USER >/dev/null 2>&1; then
+    iptables -I DOCKER-USER -i wg0 -j ACCEPT
+    iptables -I DOCKER-USER -o wg0 -j ACCEPT
+    echo "[wg-up] FORWARD rules: added to DOCKER-USER chain"
+else
+    iptables -I FORWARD -i wg0 -j ACCEPT
+    iptables -I FORWARD -o wg0 -j ACCEPT
+    echo "[wg-up] FORWARD rules: added to FORWARD chain (no DOCKER-USER)"
+fi
 
 echo "[wg-up] Done. $COUNT subnet(s) configured."
 HOOK_EOF
 
-# ---- [5/7] Generate wg-down.sh ----
+# ---- [5/8] Generate wg-down.sh ----
 cat > /etc/wireguard/wg-down.sh << 'HOOK_EOF'
 #!/bin/bash
 # ============================================================
@@ -179,7 +199,9 @@ for entry in $SUBNETS; do
     iptables -t nat -D POSTROUTING -s "$entry" -o wg0 -j MASQUERADE    2>/dev/null || true
 done
 
-# Remove FORWARD rules
+# Remove FORWARD rules from both chains (try both, ignore errors)
+iptables -D DOCKER-USER -i wg0 -j ACCEPT 2>/dev/null || true
+iptables -D DOCKER-USER -o wg0 -j ACCEPT 2>/dev/null || true
 iptables -D FORWARD -i wg0 -j ACCEPT 2>/dev/null || true
 iptables -D FORWARD -o wg0 -j ACCEPT 2>/dev/null || true
 
@@ -195,9 +217,9 @@ HOOK_EOF
 chmod +x /etc/wireguard/wg-up.sh /etc/wireguard/wg-down.sh
 echo "[INFO] Hooks written: /etc/wireguard/wg-up.sh, wg-down.sh"
 
-# ---- [6/7] Generate wg0.conf ----
+# ---- [6/8] Generate wg0.conf ----
 echo ""
-echo "[6/7] Generating wg0.conf..."
+echo "[6/8] Generating wg0.conf..."
 
 # Backup existing config
 if [ -f /etc/wireguard/wg0.conf ]; then
@@ -231,10 +253,27 @@ EOF
 chmod 600 /etc/wireguard/wg0.conf
 echo "[INFO] wg0.conf written."
 
-# ---- [7/7] Start and verify ----
+# ---- [7/8] systemd drop-in: start AFTER Docker ----
 echo ""
-echo "[7/7] Starting WireGuard tunnel..."
+echo "[7/8] Configuring systemd boot order..."
+mkdir -p /etc/systemd/system/wg-quick@wg0.service.d/
+
+cat > /etc/systemd/system/wg-quick@wg0.service.d/after-docker.conf << 'EOF'
+[Unit]
+# CRITICAL: wg0 must start AFTER Docker so that wg-up.sh
+# can detect Docker bridge subnets (172.17.0.0/16, etc.).
+# Without this, fwmark rules are NOT applied on boot and
+# traffic goes directly via HEAD instead of through TAIL.
+After=docker.service docker.socket
+Wants=docker.service
+EOF
+
 systemctl daemon-reload
+echo "[INFO] systemd drop-in created: wg-quick@wg0 starts after Docker"
+
+# ---- [8/8] Start and verify ----
+echo ""
+echo "[8/8] Starting WireGuard tunnel..."
 systemctl enable wg-quick@wg0
 systemctl restart wg-quick@wg0
 
@@ -246,6 +285,9 @@ echo "=== DIAGNOSTICS ==="
 echo "--- WireGuard status ---"
 wg show wg0 2>/dev/null || echo "[WARN] wg0 not responding"
 echo ""
+echo "--- systemd service order ---"
+systemctl show wg-quick@wg0.service | grep -E "^After=|^Wants=" || echo "[WARN] Could not read service info"
+echo ""
 echo "--- Policy routing rules ---"
 ip rule show | grep -E "fwmark|lookup" || echo "[WARN] No fwmark rules found"
 echo ""
@@ -255,8 +297,8 @@ echo ""
 echo "--- mangle PREROUTING (fwmark rules) ---"
 iptables -t mangle -L PREROUTING -n -v --line-numbers 2>/dev/null | head -30
 echo ""
-echo "--- nat POSTROUTING (masquerade) ---"
-iptables -t nat -L POSTROUTING -n -v --line-numbers 2>/dev/null | head -20
+echo "--- DOCKER-USER chain ---"
+iptables -L DOCKER-USER -n -v --line-numbers 2>/dev/null | head -10 || echo "[INFO] No DOCKER-USER chain"
 echo ""
 echo "--- Detected private subnets ---"
 ip -4 addr show | awk '/inet / {print $2}' | grep -E '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' | grep -v "10\.10\.10\." | sort -u || echo "[WARN] No private subnets found"
@@ -287,19 +329,24 @@ else
 fi
 
 echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║         HEAD SERVER — CONFIGURATION SUMMARY          ║"
-echo "╠══════════════════════════════════════════════════════╣"
-echo "║  Date:       $(date '+%Y-%m-%d %H:%M:%S %Z')"
-echo "║  Role:       HEAD (Input Node)"
-echo "║  WG Address: 10.10.10.2/24"
-echo "║  WG MTU:     1280"
-echo "║  TAIL IP:    $TAIL_IP"
-echo "║  TAIL Port:  $WG_PORT/udp"
-echo "║  Tunnel:     $TUNNEL_STATUS"
-echo "╠══════════════════════════════════════════════════════╣"
-echo "║  HEAD Public Key (give to TAIL):"
-echo "║  $HEAD_PUB_KEY"
-echo "║  TAIL Public Key (received):"
-echo "║  $TAIL_PUB_KEY"
-echo "╚══════════════════════════════════════════════════════╝"
+echo "=================================================="
+echo "  CONFIGURATION SUMMARY"
+echo "=================================================="
+echo "  Date:       $(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo "  Role:       HEAD (Input Node)"
+echo "  WG Address: 10.10.10.2/24"
+echo "  WG MTU:     1280"
+echo "  TAIL IP:    $TAIL_IP"
+echo "  TAIL Port:  $WG_PORT/udp"
+echo "  Boot order: After=docker.service"
+echo "  Tunnel:     $TUNNEL_STATUS"
+echo "=================================================="
+echo "  HEAD Public Key (give to TAIL):"
+echo "  $HEAD_PUB_KEY"
+echo "  TAIL Public Key (received):"
+echo "  $TAIL_PUB_KEY"
+echo "=================================================="
+echo "  Log file: /root/tunnel-head.log"
+echo "  Quick fix if subnets empty after reboot:"
+echo "    systemctl restart wg-quick@wg0"
+echo "=================================================="
