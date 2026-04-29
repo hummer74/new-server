@@ -38,12 +38,17 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/ne
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/startinstall.sh)"
 ```
 
+**HEAD-TAIL tunnel:**
+
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-head.sh)"
 ```
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
 ```
+
+**TAILSCALE:**
+
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh)"
 ```
