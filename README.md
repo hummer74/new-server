@@ -44,6 +44,12 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/he
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
 ```
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh)"
+```
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-uninsall.sh)"
+```
 
 
 ## 🚀 Как это работает
