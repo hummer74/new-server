@@ -53,6 +53,9 @@ bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/he
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh)"
 ```
 ```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-exit-node.sh)"
+```
+```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-uninsall.sh)"
 ```
 
