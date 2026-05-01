@@ -15,7 +15,7 @@ else
     echo "Tailscale уже установлен."
 fi
 
-# --- Шаг 2: Включение IP-форвардинга (необходим для Exit Node) ---
+# --- Шаг 2: Включение IP-форвардинга (только IPv4, IPv6 — опционально) ---
 echo ">>> Активация IP-форвардинга..."
 
 if ! grep -q "^net.ipv4.ip_forward\s*=\s*1" /etc/sysctl.conf; then
@@ -25,14 +25,14 @@ else
     echo "Параметр net.ipv4.ip_forward уже активен."
 fi
 
+# IPv6: добавим запись, но ошибка при применении не остановит скрипт
 if ! grep -q "^net.ipv6.conf.all.forwarding\s*=\s*1" /etc/sysctl.conf; then
     echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.conf > /dev/null
-    echo "Добавлен параметр: net.ipv6.conf.all.forwarding = 1"
-else
-    echo "Параметр net.ipv6.conf.all.forwarding уже активен."
+    echo "Добавлен параметр: net.ipv6.conf.all.forwarding = 1 (может не поддерживаться ядром)"
 fi
 
-sudo sysctl -p > /dev/null
+# Применяем параметры, игнорируя ошибки (например, отсутствие IPv6)
+sudo sysctl -p > /dev/null 2>&1 || echo "   (Некоторые параметры не применились – это нормально, если IPv6 отключён)"
 
 # --- Шаг 3: Первый вход в Tailscale и объявление узла ---
 echo ">>> Подключение к Tailscale и объявление Exit Node..."
