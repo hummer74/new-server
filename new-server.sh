@@ -49,6 +49,7 @@ if [ "$NUM_IPS" -gt 1 ]; then
         echo "[$i] ${IPV4_LIST[$i]}"
     done
     
+    # Strict Y/N request
     while true; do
         read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split
         case "$use_split" in
@@ -59,26 +60,25 @@ if [ "$NUM_IPS" -gt 1 ]; then
     done
 
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        MAX_IDX=$((NUM_IPS - 1))
-        
-        while true; do
-            read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
-            if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
-                INBOUND_IP=${IPV4_LIST[$in_idx]}
-                break
-            else
-                echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
-            fi
-        done
-
         if [ "$NUM_IPS" -eq 2 ]; then
-            if [ "$in_idx" -eq 0 ]; then
-                OUTBOUND_IP=${IPV4_LIST[1]}
-            else
-                OUTBOUND_IP=${IPV4_LIST[0]}
-            fi
-            echo "Auto-selected OUTBOUND IP: $OUTBOUND_IP"
+            # If exactly 2 IPs, auto-assign Outbound
+            INBOUND_IP=${IPV4_LIST[0]}
+            OUTBOUND_IP=${IPV4_LIST[1]}
+            echo "Auto-selected: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"
         else
+            # If 3+ IPs, strict numeric request for both
+            MAX_IDX=$((NUM_IPS - 1))
+            
+            while true; do
+                read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
+                if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
+                    INBOUND_IP=${IPV4_LIST[$in_idx]}
+                    break
+                else
+                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
+                fi
+            done
+            
             while true; do
                 read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
                 if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
@@ -98,6 +98,7 @@ else
     OUTBOUND_IP=${IPV4_LIST[0]}
 fi
 
+# Save config for future updates
 cat > /root/.network_config <<EOF
 USE_SPLIT_NETWORK=$USE_SPLIT_NETWORK
 INBOUND_IP=$INBOUND_IP
@@ -130,6 +131,7 @@ if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
     cat > /etc/apt/sources.list <<EOF
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
+# Security updates for oldoldstable are not available in archive, skipping
 EOF
 else
     cat > /etc/apt/sources.list <<EOF
@@ -217,15 +219,17 @@ sysctl --system
 echo ""
 printf "\\033[33m# Configure SSH to listen on ports 22 and 24940.\\033[0m\\n"
 mkdir -p /etc/ssh/sshd_config.d
-SSH_LISTEN_BLOCK=""
+SSH_LISTEN_LOCAL=""
+SSH_LISTEN_INBOUND=""
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    SSH_LISTEN_BLOCK="ListenAddress 127.0.0.1
-ListenAddress $INBOUND_IP"
+    SSH_LISTEN_LOCAL="ListenAddress 127.0.0.1"
+    SSH_LISTEN_INBOUND="ListenAddress $INBOUND_IP"
 fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
-$SSH_LISTEN_BLOCK
+ $SSH_LISTEN_LOCAL
+ $SSH_LISTEN_INBOUND
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -244,7 +248,7 @@ echo ""
 
 # --- Install Packages ---
 echo "# Install standard tools, Docker, and security packages..."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd xxd apparmor apparmor-utils -y
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd -y
 
 # --- Locales ---
 echo "Set UTF-8 locales."
@@ -293,12 +297,12 @@ bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
-$F2B_BACKEND_LINE
+ $F2B_BACKEND_LINE
 
 [sshd]
 enabled = true
 port = 22,24940
-$F2B_SSHD_LOG
+ $F2B_SSHD_LOG
 EOF
 
 if fail2ban-client -t >/dev/null 2>&1; then
@@ -323,12 +327,11 @@ APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
-
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
-    "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
-    "origin=Debian,codename=${distro_codename},label=Debian";
-    "origin=Debian,codename=${distro_codename}-updates,label=Debian";
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
@@ -361,11 +364,15 @@ EOF
 fi
 echo ""
 
-# --- Download, verify and extract setup.7z ---
+# --- Download, verify and extract setup.7z (Single Password Logic) ---
 wget -O setup.7z https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z
 if [ ! -s setup.7z ]; then
     echo "Error: downloaded file is empty"
     exit 1
+fi
+
+if ! command -v xxd >/dev/null; then
+    apt update && apt install xxd -y
 fi
 
 if ! dd if=setup.7z bs=1 count=6 2>/dev/null | xxd -p | grep -q "377abcaf271c"; then
@@ -435,7 +442,6 @@ if [ -d /home/opossum ]; then
         chmod +x opossum.sh 2>/dev/null || true
         chown -R opossum:opossum /home/opossum
         cd /root
-        rm -f opossum.7z
     else
         echo "/root/opossum.7z not found, skipping opossum setup."
     fi
@@ -443,6 +449,7 @@ else
     echo "Home directory for opossum not found, skipping downloads."
 fi
 
+# Securely wipe password variable from memory
 unset MASTER_PASSWORD
 
 echo ""
@@ -456,18 +463,22 @@ echo ""
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow proto tcp to "$INBOUND_IP" port "$port"
+        ufw allow to "$INBOUND_IP" port "$port" proto tcp
     else
-        ufw allow "$port"/tcp
+        ufw allow proto tcp port "$port"
     fi
+    echo "Allowed SSH port $port in UFW."
 done
-echo "SSH ports are allowed in UFW."
+echo "SSH ports are allowed."
 echo ""
 
 # --- Reverse SSH Tunnel ---
 echo "=============================================="
 echo " Setting up Reverse SSH Tunnel to OpenWrt "
 echo "=============================================="
+if ! command -v autossh &> /dev/null; then
+    apt install autossh -y
+fi
 KEY_PATH="/root/.ssh/ssh2router-key"
 REVERSE_LOG="/root/reverse_ssh.log"
 if [ ! -f "$KEY_PATH" ]; then
@@ -478,21 +489,55 @@ else
     ROUTER_HOST="mousehouse.ignorelist.com"
     ROUTER_PORT=24930
     LOCAL_SSH_PORT=$(ss -tlnp | grep 'sshd' | awk '{print $4}' | awk -F':' '{print $NF}' | sort -rn | head -n 1)
-    if [ -z "$LOCAL_SSH_PORT" ]; then LOCAL_SSH_PORT=22; fi
-    
+    if [ -z "$LOCAL_SSH_PORT" ]; then
+        LOCAL_SSH_PORT=22
+    fi
+    echo "Local SSH port: $LOCAL_SSH_PORT" | tee -a "$REVERSE_LOG"
     PRETTY_NAME="$newhostname"
     NAME_PREFIX=$(echo "$PRETTY_NAME" | grep -oE '[0-9]{2}' | head -n 1)
-    DEFAULT_REVERSE_PORT=${NAME_PREFIX:+"259$NAME_PREFIX"}
-    DEFAULT_REVERSE_PORT=${DEFAULT_REVERSE_PORT:-"25900"}
-    
+    if [ -z "$NAME_PREFIX" ]; then
+        DEFAULT_REVERSE_PORT="25900"
+        echo "Could not extract digits from '$PRETTY_NAME', using 25900." | tee -a "$REVERSE_LOG"
+    else
+        DEFAULT_REVERSE_PORT="259$NAME_PREFIX"
+        echo "Prefix '$NAME_PREFIX' -> default remote port $DEFAULT_REVERSE_PORT" | tee -a "$REVERSE_LOG"
+    fi
     printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
     read USER_INPUT_PORT
     REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
-
-    SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
-    SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
-    
-    cat > "$SERVICE_TEMPLATE" <<EOF
+    if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
+        echo "Error: port must be a number, skipping tunnel setup." | tee -a "$REVERSE_LOG"
+    else
+        SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
+        SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
+        mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "reverse-tunnel@*" --no-legend 2>/dev/null | awk '{print $1}')
+        if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
+            echo "Found existing tunnel services:" | tee -a "$REVERSE_LOG"
+            for i in "${!EXISTING_SERVICES[@]}"; do
+                printf "[%d] %s\n" "$((i+1))" "${EXISTING_SERVICES[$i]}"
+            done | tee -a "$REVERSE_LOG"
+            echo "Options: [Number] delete specific, [A]ll delete all, [S]kip to add new"
+            read -p "Select action: " ACTION
+            case "$ACTION" in
+                [aA]* )
+                    for svc in "${EXISTING_SERVICES[@]}"; do
+                        systemctl stop "$svc" 2>/dev/null || true
+                        systemctl disable "$svc" 2>/dev/null || true
+                    done
+                    ;;
+                [sS]* | "" ) ;;
+                [0-9]* )
+                    IDX=$((ACTION-1))
+                    if [ "$IDX" -ge 0 ] && [ "$IDX" -lt "${#EXISTING_SERVICES[@]}" ]; then
+                        SELECTED_SVC="${EXISTING_SERVICES[$IDX]}"
+                        systemctl stop "$SELECTED_SVC" 2>/dev/null || true
+                        systemctl disable "$SELECTED_SVC" 2>/dev/null || true
+                    fi
+                    ;;
+            esac
+        fi
+        
+        cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
 After=network.target
@@ -501,6 +546,7 @@ After=network.target
 User=root
 Group=root
 Environment="AUTOSSH_GATETIME=0"
+
 ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "StrictHostKeyChecking=no" \\
     -o "UserKnownHostsFile=/dev/null" \\
@@ -511,69 +557,223 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "TCPKeepAlive=yes" \\
     -i $KEY_PATH \\
     -p $ROUTER_PORT \\
-    -R %i:127:0:0:1:$LOCAL_SSH_PORT \\
+    -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
     $ROUTER_USER@$ROUTER_HOST
+
 Restart=always
 RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl daemon-reload
-    systemctl enable "$SERVICE_INSTANCE"
-    systemctl start "$SERVICE_INSTANCE"
-    echo "Tunnel service $SERVICE_INSTANCE started."
+        systemctl daemon-reload
+        systemctl enable "$SERVICE_INSTANCE"
+        systemctl start "$SERVICE_INSTANCE"
+        sleep 2
+        if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
+            STATUS_MSG="Tunnel service $SERVICE_INSTANCE is active."
+            echo "$STATUS_MSG" | tee -a "$REVERSE_LOG"
+        else
+            STATUS_MSG="ERROR: Tunnel service $SERVICE_INSTANCE failed to start."
+            echo "$STATUS_MSG" | tee -a "$REVERSE_LOG"
+        fi
+        TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+        LOG_ENTRY="[$TIMESTAMP] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${PRETTY_NAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))"
+        echo "$LOG_ENTRY" >> "$REVERSE_LOG"
+        echo "Check status: systemctl status $SERVICE_INSTANCE"
+    fi
 fi
+
+# --- Telemt MTProto Proxy ---
+echo "# Installing telemt MTProto proxy (non-interactive)..."
+if ! command -v docker >/dev/null; then
+    apt-get update
+    apt-get install -y docker.io
+    systemctl enable --now docker
+fi
+if ! docker info >/dev/null 2>&1; then
+    systemctl start docker
+fi
+if command -v docker-compose >/dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    apt-get update
+    apt-get install -y docker-compose
+    DOCKER_COMPOSE_CMD="docker-compose"
+fi
+command -v apparmor_parser >/dev/null || { apt-get update && apt-get install -y apparmor; }
+command -v openssl >/dev/null || { apt-get update && apt-get install -y openssl; }
+command -v xxd >/dev/null || { apt-get update && apt-get install -y xxd; }
+command -v curl >/dev/null || { apt-get update && apt-get install -y curl; }
+if ! command -v ufw >/dev/null; then
+    apt-get update && apt-get install -y ufw
+fi
+
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    EXTERNAL_IP="$INBOUND_IP"
+    echo "Split-network active: using Inbound IP ($EXTERNAL_IP) for proxy link."
+else
+    EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
+    if [ -z "$EXTERNAL_IP" ]; then
+        echo "Could not automatically determine external IP. Using fallback 127.0.0.1."
+        EXTERNAL_IP="127.0.0.1"
+    fi
+fi
+
+HOST_PORT=8443
+TLS_DOMAIN="github.com"
+USERNAME="proxy_user"
+SECRET=$(openssl rand -hex 16)
+TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
+FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
+INSTALL_DIR="/etc/telemt-docker"
+CONFIG_DIR="$INSTALL_DIR/config"
+mkdir -p "$CONFIG_DIR"
+cd "$INSTALL_DIR"
+
+cat > "$CONFIG_DIR/telemt.toml" <<EOF
+[general]
+use_middle_proxy = false
+[general.modes]
+classic = false
+secure = false
+tls = true
+[server]
+port = $HOST_PORT
+[server.api]
+enabled = true
+listen = "127.0.0.1:9091"
+[censorship]
+tls_domain = "$TLS_DOMAIN"
+[access.users]
+ $USERNAME = "$SECRET"
+EOF
+chmod -R 777 "$CONFIG_DIR"
+
+TELEMT_PORT_BIND="$HOST_PORT"
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
+fi
+
+cat > docker-compose.yml <<EOF
+version: '3.3'
+services:
+  telemt:
+    image: whn0thacked/telemt-docker:latest
+    container_name: telemt
+    restart: unless-stopped
+    ports:
+      - "$TELEMT_PORT_BIND:$HOST_PORT"
+    environment:
+      RUST_LOG: info
+    volumes:
+      - "$CONFIG_DIR:/etc/telemt"
+    command: ["/etc/telemt/telemt.toml"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    ulimits:
+      nofile: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+EOF
+
+if ufw status | grep -q active; then
+    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+        ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
+    else
+        ufw allow proto tcp port "$HOST_PORT"
+    fi
+fi
+echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
+ $DOCKER_COMPOSE_CMD up -d
+sleep 5
+if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
+    echo "Telemt container is running."
+else
+    echo "ERROR: Telemt container failed to start. Check logs with 'docker logs telemt'."
+fi
+LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
+echo "$LINK" > /root/tg-proxy_secret.txt
+echo "Telemt proxy installed. Link saved to /root/tg-proxy_secret.txt"
 
 # --- Crontab ---
 CRON_TMP=$(mktemp)
 crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
-echo "*/5 * * * * systemctl reset-failed" >> "$CRON_TMP"
-sort -u "$CRON_TMP" | crontab -
-rm -f "$CRON_TMP"
 
-# --- Outbound Routing Persistence (Policy Based Routing) ---
+add_cron_job() {
+    local job="$1"
+    if ! grep -Fxq "$job" "$CRON_TMP"; then
+        echo "$job" >> "$CRON_TMP"
+    fi
+}
+
+add_cron_job "@reboot         date >> /root/reboot.log"
+add_cron_job "0 0 1 * *       date > /root/reboot.log"
+add_cron_job "1 */2 * * *     /root/telemt-update.sh"
+add_cron_job "5 */3 * * *     /root/auto-update.sh"
+add_cron_job "*/5 * * * *     systemctl reset-failed"
+
+crontab "$CRON_TMP"
+rm -f "$CRON_TMP"
+echo "Crontab successfully updated (existing jobs preserved)."
+
+# --- Finalizing ---
+echo ""
+printf "\\033[33mLast update and finalizing.\\033[0m\\n"
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
+apt autoremove --purge -y
+
+# Outbound routing (if split-network was chosen)
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
     MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
-    OUTBOUND_GW=$(ip -4 route show dev "$MAIN_IFACE" | grep default | awk '{print $3}' | head -n1)
+    GATEWAY=$(ip -4 route | grep default | awk '{print $3}' | head -n1)
     
-    if [ -n "$OUTBOUND_GW" ] && [ -n "$MAIN_IFACE" ]; then
+    if [ -z "$GATEWAY" ] || [ -z "$MAIN_IFACE" ]; then
+        echo "WARNING: Could not detect Gateway or Interface. Skipping outbound route setup."
+    else
         IP_BIN=$(command -v ip)
-        
-        if ! grep -q "100 custom" /etc/iproute2/rt_tables; then
-            echo "100 custom" >> /etc/iproute2/rt_tables
-        fi
-
         cat > /etc/systemd/system/set-outbound-route.service <<EOF
 [Unit]
-Description=Set policy-based routing for Split Network
+Description=Set default outbound IP route
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=$IP_BIN route replace default via $OUTBOUND_GW dev $MAIN_IFACE src $OUTBOUND_IP
-ExecStart=$IP_BIN route flush table 100
-ExecStart=$IP_BIN route add default via $OUTBOUND_GW dev $MAIN_IFACE table 100
-ExecStart=$IP_BIN rule add from $INBOUND_IP table 100
+ExecStart=$IP_BIN route replace default via $GATEWAY dev $MAIN_IFACE src $OUTBOUND_IP
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOF
-        systemctl daemon-reload
         systemctl enable set-outbound-route.service
         
-        $IP_BIN route replace default via "$OUTBOUND_GW" dev "$MAIN_IFACE" src "$OUTBOUND_IP" || true
-        $IP_BIN route flush table 100 || true
-        $IP_BIN route add default via "$OUTBOUND_GW" dev "$MAIN_IFACE" table 100 || true
-        $IP_BIN rule add from "$INBOUND_IP" table 100 || true
-        
-        echo "Policy-based routing configured (Inbound: $INBOUND_IP, Outbound: $OUTBOUND_IP)"
+        if ! $IP_BIN route replace default via "$GATEWAY" dev "$MAIN_IFACE" src "$OUTBOUND_IP" 2>/dev/null; then
+            echo "ERROR: Failed to apply outbound route (invalid gateway for $OUTBOUND_IP?)."
+            echo "Disabling set-outbound-route.service to prevent boot failure."
+            systemctl disable set-outbound-route.service
+        else
+            echo "Outbound route configured to use $OUTBOUND_IP"
+        fi
     fi
 fi
 
-echo "Finalizing..."
+echo "Enabling UFW..."
 ufw --force enable
+ufw status verbose
+
+echo "REBOOT in 5s..."
 sleep 5
 reboot now

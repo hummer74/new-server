@@ -1,266 +1,193 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Log all output to /var/log/new-other.log ===
-LOG_FILE="/var/log/new-other.log"
-exec 3>&1 4>&2
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
-
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo "This script must be run as root."
     exit 1
 fi
 
-# --- Detect Debian version ---
+# --- Определяем версию Debian и формат APT-источников ---
 if [ -f /etc/os-release ]; then
     source /etc/os-release
     DEBIAN_VERSION_ID="${VERSION_ID:-0}"
-    if [ -z "$VERSION_CODENAME" ] && [ -n "$VERSION" ]; then
-        DEBIAN_CODENAME=$(echo "$VERSION" | sed -n 's/.*(\(.*\)).*/\1/p')
-    else
-        DEBIAN_CODENAME="${VERSION_CODENAME:-unknown}"
-    fi
+    DEBIAN_CODENAME="${VERSION_CODENAME:-unknown}"
 else
-    echo "Error: Failed to determine Debian version (/etc/os-release not found)."
+    echo "Ошибка: не удалось определить версию Debian (/etc/os-release отсутствует)."
     exit 1
 fi
 
-if [ "$DEBIAN_CODENAME" = "unknown" ]; then
-    echo "Error: Failed to determine Debian codename."
-    exit 1
-fi
+echo "Определена ОС: ${PRETTY_NAME:-$NAME $VERSION} (кодовое имя: $DEBIAN_CODENAME)"
 
-echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
-
-# --- STEP 0: Auto-detect IP (Inbound/Outbound) ---
-echo "--- Network Analysis ---"
-IPV4_LIST=($(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1))
-NUM_IPS=${#IPV4_LIST[@]}
-
-INBOUND_IP=""
-OUTBOUND_IP=""
-USE_SPLIT_NETWORK="false"
-
-if [ "$NUM_IPS" -gt 1 ]; then
-    echo "Found multiple IPv4 addresses:"
-    for i in "${!IPV4_LIST[@]}"; do
-        echo "[$i] ${IPV4_LIST[$i]}"
-    done
-    
-    while true; do
-        read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split
-        case "$use_split" in
-            [Yy]*) USE_SPLIT_NETWORK="true"; break ;;
-            [Nn]*) break ;;
-            *) echo "Invalid input. Please enter exactly Y or N." ;;
-        esac
-    done
-
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        if [ "$NUM_IPS" -eq 2 ]; then
-            INBOUND_IP=${IPV4_LIST[0]}
-            OUTBOUND_IP=${IPV4_LIST[1]}
-            echo "Auto-selected: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"
-        else
-            MAX_IDX=$((NUM_IPS - 1))
-            while true; do
-                read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
-                if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
-                    INBOUND_IP=${IPV4_LIST[$in_idx]}
-                    break
-                else
-                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
-                fi
-            done
-            while true; do
-                read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
-                if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
-                    OUTBOUND_IP=${IPV4_LIST[$out_idx]}
-                    break
-                else
-                    echo "Invalid index. Please enter a number between 0 and $MAX_IDX."
-                fi
-            done
-        fi
-    else
-        INBOUND_IP=${IPV4_LIST[0]}
-        OUTBOUND_IP=${IPV4_LIST[0]}
-    fi
+# Определяем, используется ли формат deb822 по умолчанию (Debian 12+)
+if [ "$DEBIAN_VERSION_ID" -ge 12 ] 2>/dev/null; then
+    USE_DEB822="true"
 else
-    INBOUND_IP=${IPV4_LIST[0]}
-    OUTBOUND_IP=${IPV4_LIST[0]}
+    USE_DEB822="false"
 fi
 
-# --- APT Sources ---
-echo "Checking and fixing APT sources..."
+# Проверяем целостность .sources файлов
+BROKEN_DEB822_FOUND="false"
 if [ -d /etc/apt/sources.list.d ]; then
-    mkdir -p /root/apt-backups
-    for src in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
-        if [ -f "$src" ]; then
-            echo "Moving $src to /root/apt-backups/"
-            mv "$src" "/root/apt-backups/$(basename "$src").bak-$(date +%Y%m%d%H%M%S)"
+    for src in /etc/apt/sources.list.d/*.sources; do
+        if [ -f "$src" ] && grep -q "^Suite:" "$src" 2>/dev/null; then
+            # Проверяем синтаксис APT
+            if ! apt-get update --print-uris 2>&1 | grep -q "Malformed"; then
+                USE_DEB822="true"
+            else
+                echo "Обнаружен повреждённый deb822-файл: $src"
+                BROKEN_DEB822_FOUND="true"
+            fi
         fi
     done
 fi
 
-if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
-    cat > /etc/apt/sources.list <<EOF
-deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free
-deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free
-EOF
-else
+# --- Исправляем репозитории, если они сломаны или формат не deb822 ---
+if [ "$BROKEN_DEB822_FOUND" = "true" ] || [ "$USE_DEB822" = "false" ]; then
+    echo "Восстанавливаем стандартные репозитории в формате sources.list ..."
+    # Создаём резервную копию повреждённых/старых файлов
+    for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+        [ -f "$f" ] && mv "$f" "$f.bak-$(date +%Y%m%d%H%M%S)"
+    done
+
+    # Генерируем корректный sources.list в зависимости от версии Debian
     cat > /etc/apt/sources.list <<EOF
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main contrib non-free non-free-firmware
 EOF
+    # Для старых версий (без non-free-firmware) компонент просто игнорируется
+    if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
+        sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
+    fi
+    echo "Создан файл /etc/apt/sources.list для версии $DEBIAN_CODENAME."
 fi
 
-if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
-    sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
-fi
-
+# Удаляем заведомо сломанные backports (если есть)
 sed -i '/-backports/d' /etc/apt/sources.list 2>/dev/null || true
-echo "APT sources fixed."
+sed -i '/-backports/d' /etc/apt/sources.list.d/* 2>/dev/null || true
 
-# --- Updates ---
-echo "# Updating package lists and upgrading system..."
+echo "# Install all updates."
 dpkg --configure -a
-apt clean -y && rm -rf /var/lib/apt/lists/*
-apt update -y || { echo "ERROR: apt update failed"; exit 1; }
-apt full-upgrade -y || { echo "ERROR: apt full-upgrade failed"; exit 1; }
-apt autoremove -y && apt autoclean
-apt autoremove --purge -y
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
+echo ""
+echo ""
+echo ""
 
-# --- Swap ---
-echo "# Configuring swap file (512 MB)..."
+# --- Start of automated swap creation (512 MB, non‑interactive) ---
+echo "# Creating swap file (512 MB)..."
+
+# Remove all file‑based swap devices without confirmation
 swaps=$(swapon --show=NAME,TYPE --noheadings --raw | awk '$2=="file" {print $1}')
 if [ -n "$swaps" ]; then
+    echo "Removing existing file‑based swap devices: $swaps"
     for file in $swaps; do
         swapoff "$file" 2>/dev/null || true
         rm -f "$file"
     done
 fi
+
+# Create new swap file of 512 MB
 SWAP_FILE="/swapfile"
 SWAP_SIZE_MB=512
+echo "Creating $SWAP_FILE of size ${SWAP_SIZE_MB} MB..."
 if fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null; then
     echo "Using fallocate."
 else
+    echo "fallocate not supported, using dd..."
     dd if=/dev/zero of="$SWAP_FILE" bs=1M count="$SWAP_SIZE_MB" status=progress
 fi
 chmod 600 "$SWAP_FILE"
 mkswap "$SWAP_FILE"
 swapon "$SWAP_FILE"
-[ -f /etc/fstab ] && cp /etc/fstab /etc/fstab.bak.$(date +%Y%m%d%H%M%S)
+
+# Update /etc/fstab: remove old entries for /swapfile and add new one
+cp /etc/fstab /etc/fstab.bak.$(date +%Y%m%d%H%M%S)
 sed -i "\\#^$SWAP_FILE#d" /etc/fstab
 echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
+echo "Swap configured."
+# --- End of swap creation ---
 
-# --- Hostname ---
-printf "\\033[33m# Change PRETTY hostname\\033[0m\\n"
-read -p "Type new PRETTY hostname: " newhostname
-if [ -n "$newhostname" ]; then
-    hostnamectl set-hostname "$newhostname" --pretty
+printf "\\033[33m# Change PRETTY hostname!!!\\033[0m\\n"
+read -p "Type new PRETTY hostname here: " newhostname
+hostnamectl set-hostname "$newhostname" --pretty
+echo ""
+echo ""
+echo ""
+
+# --- IPv6 handling: full disable only (no questions) ---
+echo "# Disable ping and IPv6 completely."
+echo "blacklist ipv6" > /etc/modprobe.d/blacklist-ipv6.conf
+update-initramfs -u
+if grep --color 'net.ipv4.icmp_echo_ignore_all=1' /etc/sysctl.conf; then
+    echo "Ping already blocked."
+else
+    echo "Blocking IPv4 ping."
+    echo "net.ipv4.icmp_echo_ignore_all=1" >> /etc/sysctl.conf
+fi
+if grep --color 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf; then
+    echo "IPv6 already disabled in sysctl."
+else
+    echo "Disabling IPv6."
+    echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+fi
+sysctl -p
+# --- End of IPv6 configuration ---
+
+echo ""
+echo ""
+echo ""
+printf "\\033[33m# Configure SSH to listen on ports 22 and 24940.\\033[0m\\n"
+
+# Check if ports are already configured to avoid duplicate entries or unnecessary file modifications
+if ! grep -q "^Port 22$" /etc/ssh/sshd_config || ! grep -q "^Port 24940$" /etc/ssh/sshd_config; then
+    sed -i '/^Port /d' /etc/ssh/sshd_config
+    echo "Port 22" >> /etc/ssh/sshd_config
+    echo "Port 24940" >> /etc/ssh/sshd_config
+    echo "Ports 22 and 24940 configured in sshd_config."
+else
+    echo "Ports 22 and 24940 are already configured."
 fi
 
-# --- Hard-disable IPv6 and block ICMP ---
-echo "Hard-disabling IPv6 and blocking ICMP..."
-cat > /etc/sysctl.d/99-hardened.conf <<EOF
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1
-net.ipv4.icmp_echo_ignore_all = 1
-EOF
-
-if [ -f /etc/default/grub ]; then
-    if ! grep -q "ipv6.disable=1" /etc/default/grub; then
-        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="ipv6.disable=1 /' /etc/default/grub
-        update-grub || true
-    fi
-fi
-sysctl --system
-
-# --- SSH Configuration ---
-echo "Configuring SSH..."
-mkdir -p /etc/ssh/sshd_config.d
-SSH_LISTEN_EXTRA=""
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    SSH_LISTEN_EXTRA="ListenAddress 127.0.0.1
-ListenAddress $INBOUND_IP"
+# Allow root login with password (as requested)
+if ! grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config; then
+    sed -i '/^#\?PermitRootLogin/d' /etc/ssh/sshd_config
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 fi
 
-cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
-Port 22
-Port 24940
-$SSH_LISTEN_EXTRA
-PermitRootLogin yes
-PasswordAuthentication yes
-PubkeyAuthentication yes
-EOF
-
-if ! grep -q "^Include /etc/ssh/sshd_config.d/\*.conf" /etc/ssh/sshd_config; then
-    sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
+if ! grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config; then
+    sed -i '/^#\?PasswordAuthentication/d' /etc/ssh/sshd_config
+    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
 fi
 
+# Reload SSH only if config is valid
 if sshd -t; then
     systemctl reload ssh
+    echo "SSH service reloaded successfully."
 else
-    echo "SSH configuration syntax error."
+    echo "SSH configuration syntax error. Reload aborted. Please check /etc/ssh/sshd_config."
 fi
 
-# --- Install Packages ---
-echo "# Installing standard tools and security packages..."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg python3-systemd -y
+echo ""
+echo ""
+echo ""
+echo "# Install mc, curl, wget, htop, unattended-upgrades, apt-listchanges, fail2ban, ufw, autossh."
+apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd -y
 
-# --- Locales ---
-echo "Setting UTF-8 locales..."
-locale-gen en_US.UTF-8 ru_RU.UTF-8
-if ! locale -a | grep -qi "ru_ru\.utf8\|ru_ru\.utf-8"; then
-    sed -i 's/^# ru_RU.UTF-8/ru_RU.UTF-8/' /etc/locale.gen
-    locale-gen ru_RU.UTF-8
-fi
-echo "LANG=ru_RU.UTF-8" > /etc/default/locale
-export LANG=ru_RU.UTF-8
+# Configure unattended-upgrades (automatic security updates)
+echo ""
+echo "# Configuring unattended-upgrades..."
+echo ""
 
-# --- Fail2ban ---
-echo "Configuring Fail2ban..."
-systemctl enable fail2ban.service
-cat > /etc/fail2ban/fail2ban.local <<EOF
-[Definition]
-allowipv6 = auto
-EOF
-
-F2B_SSHD_LOG=""
-[ "$DEBIAN_VERSION_ID" -lt 12 ] && F2B_SSHD_LOG="logpath = %(sshd_log)s"
-F2B_BACKEND_LINE=""
-[ "$DEBIAN_VERSION_ID" -ge 12 ] && F2B_BACKEND_LINE="backend = systemd"
-
-cat > /etc/fail2ban/jail.local <<EOF
-[DEFAULT]
-bantime = 7d
-findtime = 180m
-maxretry = 4
-$F2B_BACKEND_LINE
-
-[sshd]
-enabled = true
-port = 22,24940
-$F2B_SSHD_LOG
-EOF
-
-if fail2ban-client -t >/dev/null 2>&1; then
-    systemctl restart fail2ban.service
-fi
-
-# --- Unattended-upgrades ---
-echo "Configuring unattended-upgrades..."
+# Basic periodic settings
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<EOF
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
+
+# Allow only security updates (and ESM if available)
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<'EOF'
 Unattended-Upgrade::Allowed-Origins {
     "${distro_id}:${distro_codename}-security";
@@ -274,11 +201,52 @@ Unattended-Upgrade::MailOnlyOnError "true";
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "00:01";
 EOF
+
+# Enable and start the service
 systemctl enable unattended-upgrades
 systemctl restart unattended-upgrades
 
-# --- ~/.profile ---
+echo "Unattended-upgrades configured."
+echo ""
+
+# Create auto-update.sh script (no forced reboot)
+cat > /root/auto-update.sh << 'EOF'
+#!/bin/bash
+
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root." >&2
+    exit 1
+fi
+
+LOGFILE="/var/log/auto-update.log"
+echo "[$(date)] Starting system update..." >> "$LOGFILE"
+
+apt clean -y
+rm -rf /var/lib/apt/lists/*
+apt update -y
+
+upgradable=$(apt list --upgradable 2>/dev/null | tail -n +2 | wc -l)
+if [ "$upgradable" -eq 0 ]; then
+    echo "[$(date)] No updates available." >> "$LOGFILE"
+    apt autoremove -y
+    apt autoclean -y
+    exit 0
+fi
+
+echo "[$(date)] Found $upgradable package(s) to upgrade." >> "$LOGFILE"
+apt full-upgrade -y >> "$LOGFILE" 2>&1
+apt autoremove -y
+apt autoclean -y
+
+echo "[$(date)] Update completed." >> "$LOGFILE"
+EOF
+
+chmod +x /root/auto-update.sh
+echo "Script /root/auto-update.sh created."
+
+# Improved ~/.profile additions (only sudo mc, no screen auto-attach)
 if ! grep -q "sudo mc" ~/.profile; then
     cat >> ~/.profile << 'EOF'
 
@@ -286,96 +254,156 @@ if ! grep -q "sudo mc" ~/.profile; then
 sleep 2
 sudo mc 2>/dev/null
 EOF
-fi
-
-# --- Maintenance Scripts ---
-echo "Creating maintenance scripts..."
-
-# 1. auto-update.sh
-cat > /root/auto-update.sh << 'EOF'
-#!/bin/bash
-set -euo pipefail
-LOGFILE="/var/log/auto-update.log"
-echo "[$(date)] Starting system update..." >> "$LOGFILE"
-apt clean -y
-rm -rf /var/lib/apt/lists/*
-apt update -y
-upgradable=$(apt list --upgradable 2>/dev/null | tail -n +2 | wc -l)
-if [ "$upgradable" -eq 0 ]; then
-    echo "[$(date)] No updates available." >> "$LOGFILE"
+    echo "mc launch added to ~/.profile"
 else
-    echo "[$(date)] Found $upgradable package(s) to upgrade." >> "$LOGFILE"
-    apt full-upgrade -y >> "$LOGFILE" 2>&1
+    echo "mc launch already present in ~/.profile"
 fi
-apt autoremove -y && apt autoclean -y
-echo "[$(date)] Update completed." >> "$LOGFILE"
-EOF
-chmod +x /root/auto-update.sh
 
-# 2. telemt-update.sh
-cat > /root/telemt-update.sh << 'EOF'
-#!/bin/bash
-set -euo pipefail
-PROJECT_DIR="/etc/telemt-docker"
-LOG_FILE="/var/log/telemt-update.log"
-MAX_LOG_LINES=1000
-[ "$EUID" -ne 0 ] && exit 1
-if command -v docker-compose >/dev/null; then COMPOSE_CMD="docker-compose";
-elif docker compose version >/dev/null 2>&1; then COMPOSE_CMD="docker compose";
-else exit 1; fi
-get_image_id() { docker inspect --format='{{.Id}}' "whn0thacked/telemt-docker:latest" 2>/dev/null | sed 's/sha256://'; }
-log_single() {
-    local msg="$1"
-    local ts=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "$ts - $msg" >> "$LOG_FILE"
-}
-cd "$PROJECT_DIR" || exit 1
-OLD_ID=$(get_image_id)
-$COMPOSE_CMD pull --quiet >/dev/null 2>&1 || exit 2
-NEW_ID=$(get_image_id)
-if [ "$OLD_ID" != "$NEW_ID" ]; then
-    log_single "🔄 New version found! Restarting container..."
-    $COMPOSE_CMD up -d --remove-orphans >/dev/null 2>&1 && log_single "✅ Telemt updated" || log_single "❌ Restart failed"
-fi
-docker image prune -f &>/dev/null || true
-if [ -f "$LOG_FILE" ] && [ "$(wc -l < "$LOG_FILE")" -gt "$MAX_LOG_LINES" ]; then
-    tail -n "$MAX_LOG_LINES" "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
-fi
-EOF
-chmod +x /root/telemt-update.sh
+echo ""
+echo ""
+echo ""
+echo "Set UTF-8 locales."
+locale-gen en_US.UTF-8 ru_RU.UTF-8
+update-locale LANG=ru_RU.UTF-8
+echo ""
+echo ""
+echo ""
+sysctl --system
 
-# --- Telemt MTProto Proxy (Docker) ---
-echo "# Installing telemt MTProto proxy..."
+# --- Configure Fail2ban (no hardcoded ignoreip) ---
+echo "Configuring Fail2ban..."
+systemctl enable fail2ban.service
+
+cat > /etc/fail2ban/fail2ban.local <<EOF
+[Definition]
+allowipv6 = auto
+EOF
+
+cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 1440m
+findtime = 90m
+maxretry = 2
+ignoreip =
+
+[sshd]
+enabled = true
+port = 22,24940
+EOF
+
+systemctl restart fail2ban.service
+echo "Fail2ban configured (no ignored IPs)."
+
+# Fix permissions for ~/.ssh (if exists)
+if [ -d ~/.ssh ]; then
+    echo "Fixing SSH directory permissions..."
+    chmod 700 ~/.ssh
+    chmod 600 ~/.ssh/* 2>/dev/null || true
+    chmod 644 ~/.ssh/*.pub 2>/dev/null || true
+    chmod 600 ~/.ssh/authorized_keys 2>/dev/null || true
+    chmod 644 ~/.ssh/known_hosts 2>/dev/null || true
+    chmod 644 ~/.ssh/config 2>/dev/null || true
+fi
+
+echo ""
+echo ""
+echo ""
+systemctl --failed
+echo ""
+systemctl reset-failed
+# Create a marker file with the pretty hostname
+safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+touch "/root/zzz-$safe_name"
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+
+# Configure UFW firewall – add rules and ask whether to enable
+echo "Configuring UFW firewall..."
+
+# Determine current SSH listening ports to prevent lockout
+CURRENT_SSH_PORTS=$(ss -tlnp 2>/dev/null | awk '/sshd/ {print $4}' | sed -E 's/.*://' | sort -u)
+if [ -z "$CURRENT_SSH_PORTS" ]; then
+    echo "Warning: Could not determine current SSH ports. Allowing default 22 and 24940."
+    ufw allow 22/tcp
+    ufw allow 24940/tcp
+else
+    echo "Current SSH listening ports: $CURRENT_SSH_PORTS"
+    for port in $CURRENT_SSH_PORTS; do
+        ufw allow "$port"/tcp
+        echo "Allowed SSH port $port/tcp in UFW."
+    done
+    # Also ensure standard ports are allowed
+    ufw allow 22/tcp 2>/dev/null || true
+    ufw allow 24940/tcp 2>/dev/null || true
+fi
+
+echo "SSH ports are allowed."
+read -p "Do you want to enable UFW now? (y/N): " enable_ufw
+if [[ "$enable_ufw" =~ ^[Yy]$ ]]; then
+    echo "Enabling UFW..."
+    ufw --force enable
+    echo "UFW is now enabled and active."
+    ufw status verbose
+else
+    echo "UFW rules have been added but the firewall is not enabled."
+    echo "You can enable it later with: sudo ufw enable"
+fi
+
+echo ""
+
+# --- Start of automated telemt installation (non‑interactive, defaults) ---
+echo "# Installing telemt MTProto proxy (non‑interactive)..."
+# Check for Docker Engine
 if ! command -v docker >/dev/null; then
-    apt-get update && apt-get install -y docker.io
+    echo "Docker not found. Installing docker.io..."
+    apt-get update
+    apt-get install -y docker.io
     systemctl enable --now docker
 fi
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker daemon not running. Starting..."
+    systemctl start docker
+fi
+# Determine Docker Compose command
 if command -v docker-compose >/dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
 elif docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
 else
-    apt-get update && apt-get install -y docker-compose
+    apt-get update
+    apt-get install -y docker-compose
     DOCKER_COMPOSE_CMD="docker-compose"
 fi
-
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    EXTERNAL_IP="$INBOUND_IP"
-else
-    EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || echo "127.0.0.1")
+# Install dependencies
+command -v apparmor_parser >/dev/null || { apt-get update && apt-get install -y apparmor; }
+command -v openssl >/dev/null || { apt-get update && apt-get install -y openssl; }
+command -v xxd >/dev/null || { apt-get update && apt-get install -y xxd; }
+command -v curl >/dev/null || { apt-get update && apt-get install -y curl; }
+if ! command -v ufw >/dev/null; then
+    apt-get update && apt-get install -y ufw
 fi
-
+# Determine external IP
+EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
+if [ -z "$EXTERNAL_IP" ]; then
+    echo "Could not automatically determine external IP. Using fallback 127.0.0.1."
+    EXTERNAL_IP="127.0.0.1"
+fi
+# Default values
 HOST_PORT=8443
 TLS_DOMAIN="github.com"
 USERNAME="proxy_user"
+# Generate secret
 SECRET=$(openssl rand -hex 16)
-TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\n')
+TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
 FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
+# Create directories and config
 INSTALL_DIR="/etc/telemt-docker"
 CONFIG_DIR="$INSTALL_DIR/config"
 mkdir -p "$CONFIG_DIR"
 cd "$INSTALL_DIR"
-
 cat > "$CONFIG_DIR/telemt.toml" <<EOF
 [general]
 use_middle_proxy = false
@@ -394,10 +422,6 @@ tls_domain = "$TLS_DOMAIN"
 $USERNAME = "$SECRET"
 EOF
 chmod -R 777 "$CONFIG_DIR"
-
-TELEMT_PORT_BIND="$HOST_PORT"
-[ "$USE_SPLIT_NETWORK" == "true" ] && TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
-
 cat > docker-compose.yml <<EOF
 version: '3.3'
 services:
@@ -406,7 +430,7 @@ services:
     container_name: telemt
     restart: unless-stopped
     ports:
-      - "$TELEMT_PORT_BIND:$HOST_PORT"
+      - "$HOST_PORT:$HOST_PORT"
     environment:
       RUST_LOG: info
     volumes:
@@ -429,71 +453,56 @@ services:
         max-size: "10m"
         max-file: "3"
 EOF
-
+# Open port in UFW if active
+if ufw status | grep -q active; then
+    ufw allow "$HOST_PORT/tcp"
+fi
+echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
+# Start container
 $DOCKER_COMPOSE_CMD up -d
+# Wait a moment and check if container is running
+sleep 5
+if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
+    echo "Telemt container is running."
+else
+    echo "ERROR: Telemt container failed to start. Check logs with 'docker logs telemt'."
+fi
+# Save connection link
 LINK="tg://proxy?server=${EXTERNAL_IP}&port=${HOST_PORT}&secret=${FULL_SECRET}"
 echo "$LINK" > /root/tg-proxy_secret.txt
 echo "Telemt proxy installed. Link saved to /root/tg-proxy_secret.txt"
+# --- End of telemt installation ---
 
-# --- Crontab ---
-CRON_TMP=$(mktemp)
-crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
-add_cron_job() {
-    grep -Fxq "$1" "$CRON_TMP" || echo "$1" >> "$CRON_TMP"
-}
-add_cron_job "@reboot         date >> /root/reboot.log"
-add_cron_job "0 0 1 * *       date > /root/reboot.log"
-add_cron_job "1 */2 * * *     /root/telemt-update.sh"
-add_cron_job "5 */3 * * *     /root/auto-update.sh"
-add_cron_job "*/5 * * * *     systemctl reset-failed"
-crontab "$CRON_TMP"
-rm -f "$CRON_TMP"
-
-# --- UFW ---
-echo "Configuring UFW..."
-for port in 22 24940 "$HOST_PORT"; do
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port "$port" proto tcp
-    else
-        ufw allow "$port/tcp"
-    fi
-done
-
-# Outbound routing (split-network)
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
-    GATEWAY=$(ip -4 route | grep default | awk '{print $3}' | head -n1)
-    if [ -n "$GATEWAY" ] && [ -n "$MAIN_IFACE" ]; then
-        IP_BIN=$(command -v ip)
-        cat > /etc/systemd/system/set-outbound-route.service <<EOF
-[Unit]
-Description=Set default outbound IP route
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=$IP_BIN route replace default via $GATEWAY dev $MAIN_IFACE src $OUTBOUND_IP
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
+# Set new cron jobs, completely replacing the current crontab
+crontab - <<EOF
+@reboot         date >> /root/reboot.log
+0 0 1 * *       date > /root/reboot.log
+1 */2 * * *     /root/telemt-update.sh
+5 */3 * * *     /root/auto-update.sh
+*/5 * * * *     systemctl reset-failed
 EOF
-        systemctl enable set-outbound-route.service
-        $IP_BIN route replace default via "$GATEWAY" dev "$MAIN_IFACE" src "$OUTBOUND_IP" || true
-    fi
-fi
 
-echo "Enabling UFW..."
-ufw --force enable
-
-# Create a marker file with the pretty hostname
-safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
-touch "/root/zzz-$safe_name"
-
-echo "Finalizing..."
-apt clean -y && apt autoremove --purge -y
-
-echo "Done. REBOOT in 5s..."
-sleep 5
+echo "Crontab successfully updated."
+echo ""
+echo ""
+echo ""
+printf "\\033[33mLast update.\\033[0m\\n"
+apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean && apt purge ~c -y
+read -n1 -s -r -p "Press any key for reboot..."; echo
+echo ""
+echo ""
+echo ""
+echo "REBOOT"
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
 reboot now
