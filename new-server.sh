@@ -234,8 +234,8 @@ fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
- $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress 127.0.0.1" || true)
- $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress $INBOUND_IP" || true)
+$([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress 127.0.0.1" || true)
+$([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress $INBOUND_IP" || true)
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -303,12 +303,12 @@ bantime = 7d
 findtime = 180m
 maxretry = 4
 ignoreip = $F2B_IGNORE_IPS
- $F2B_BACKEND_LINE
+$F2B_BACKEND_LINE
 
 [sshd]
 enabled = true
 port = 22,24940
- $F2B_SSHD_LOG
+$F2B_SSHD_LOG
 EOF
 
 if fail2ban-client -t >/dev/null 2>&1; then
@@ -686,7 +686,7 @@ listen = "127.0.0.1:9091"
 [censorship]
 tls_domain = "$TLS_DOMAIN"
 [access.users]
- $USERNAME = "$SECRET"
+$USERNAME = "$SECRET"
 EOF
 chmod -R 777 "$CONFIG_DIR"
 
@@ -744,7 +744,7 @@ else
     fi
 fi
 echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
- $DOCKER_COMPOSE_CMD up -d
+$DOCKER_COMPOSE_CMD up -d
 sleep 5
 if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
     echo "Telemt container is running."
