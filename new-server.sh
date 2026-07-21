@@ -161,31 +161,39 @@ apt autoremove --purge -y
 echo ""
 
 # --- Swap ---
-echo "# Creating swap file (512 MB)..."
-swaps=$(swapon --show=NAME,TYPE --noheadings --raw | awk '$2=="file" {print $1}')
-if [ -n "$swaps" ]; then
-    echo "Removing existing file-based swap devices: $swaps"
-    for file in $swaps; do
-        swapoff "$file" 2>/dev/null || true
-        rm -f "$file"
-    done
-fi
 SWAP_FILE="/swapfile"
 SWAP_SIZE_MB=512
-echo "Creating $SWAP_FILE of size ${SWAP_SIZE_MB} MB..."
-if fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null; then
-    echo "Using fallocate."
+
+if swapon --show=NAME --noheadings --raw | grep -q "^${SWAP_FILE}$"; then
+    echo "Swap file $SWAP_FILE is already active. Skipping swap creation."
+    # Ensure fstab entry exists
+    if ! grep -qF "$SWAP_FILE" /etc/fstab; then
+        cp /etc/fstab /etc/fstab.bak.$(date +%Y%m%d%H%M%S)
+        echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
+        echo "Added swap entry to /etc/fstab."
+    fi
 else
-    echo "fallocate not supported, using dd..."
-    dd if=/dev/zero of="$SWAP_FILE" bs=1M count="$SWAP_SIZE_MB" status=progress
+    echo "# Creating swap file (${SWAP_SIZE_MB} MB)..."
+    if [ -f "$SWAP_FILE" ]; then
+        echo "Found stale $SWAP_FILE, removing..."
+        swapoff "$SWAP_FILE" 2>/dev/null || true
+        rm -f "$SWAP_FILE"
+    fi
+    echo "Creating $SWAP_FILE of size ${SWAP_SIZE_MB} MB..."
+    if fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE" 2>/dev/null; then
+        echo "Using fallocate."
+    else
+        echo "fallocate not supported, using dd..."
+        dd if=/dev/zero of="$SWAP_FILE" bs=1M count="$SWAP_SIZE_MB" status=progress
+    fi
+    chmod 600 "$SWAP_FILE"
+    mkswap "$SWAP_FILE"
+    swapon "$SWAP_FILE"
+    cp /etc/fstab /etc/fstab.bak.$(date +%Y%m%d%H%M%S)
+    sed -i "\\#^$SWAP_FILE#d" /etc/fstab
+    echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
+    echo "Swap configured."
 fi
-chmod 600 "$SWAP_FILE"
-mkswap "$SWAP_FILE"
-swapon "$SWAP_FILE"
-cp /etc/fstab /etc/fstab.bak.$(date +%Y%m%d%H%M%S)
-sed -i "\\#^$SWAP_FILE#d" /etc/fstab
-echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
-echo "Swap configured."
 
 # --- Hostname ---
 printf "\\033[33m# Change PRETTY hostname!!!\\033[0m\\n"
@@ -219,17 +227,15 @@ sysctl --system
 echo ""
 printf "\\033[33m# Configure SSH to listen on ports 22 and 24940.\\033[0m\\n"
 mkdir -p /etc/ssh/sshd_config.d
-SSH_LISTEN_LOCAL=""
-SSH_LISTEN_INBOUND=""
+SSH_EXTRA=""
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    SSH_LISTEN_LOCAL="ListenAddress 127.0.0.1"
-    SSH_LISTEN_INBOUND="ListenAddress $INBOUND_IP"
+    SSH_EXTRA="ListenAddress 127.0.0.1\nListenAddress $INBOUND_IP"
 fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
- $SSH_LISTEN_LOCAL
- $SSH_LISTEN_INBOUND
+ $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress 127.0.0.1" || true)
+ $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress $INBOUND_IP" || true)
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -419,7 +425,11 @@ echo ""
 printf "\\033[33m# Add ordinary user OPOSSUM with PASSWORD!\\033[0m\\n"
 if [ $(id -u) -eq 0 ]; then
     if grep -q "^opossum:" /etc/passwd; then
-        echo "User opossum already exists! Skipping creation."
+        echo "User opossum already exists. Updating password..."
+        pass=$(openssl passwd -6 "$MASTER_PASSWORD")
+        usermod -p "$pass" opossum
+        usermod -aG sudo opossum 2>/dev/null || true
+        echo "Password for opossum updated."
     else
         pass=$(openssl passwd -6 "$MASTER_PASSWORD")
         useradd -m -p "$pass" opossum
@@ -456,6 +466,13 @@ echo ""
 systemctl --failed
 systemctl reset-failed
 safe_name=$(echo "$newhostname" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+# Clean up old marker files
+for old_marker in /root/zzz-*; do
+    if [ -f "$old_marker" ] && [ "$(basename "$old_marker")" != "zzz-$safe_name" ]; then
+        rm -f "$old_marker"
+        echo "Removed old marker: $old_marker"
+    fi
+done
 touch "/root/zzz-$safe_name"
 echo ""
 
@@ -463,11 +480,20 @@ echo ""
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        ufw allow to "$INBOUND_IP" port "$port" proto tcp
+        if ! ufw status | grep -qE "${INBOUND_IP}.*${port}/tcp"; then
+            ufw allow to "$INBOUND_IP" port "$port" proto tcp
+            echo "Allowed SSH port $port on $INBOUND_IP in UFW."
+        else
+            echo "UFW rule for port $port on $INBOUND_IP already exists, skipping."
+        fi
     else
-        ufw allow proto tcp port "$port"
+        if ! ufw status | grep -qE "${port}/tcp"; then
+            ufw allow proto tcp port "$port"
+            echo "Allowed SSH port $port in UFW."
+        else
+            echo "UFW rule for port $port already exists, skipping."
+        fi
     fi
-    echo "Allowed SSH port $port in UFW."
 done
 echo "SSH ports are allowed."
 echo ""
@@ -568,7 +594,7 @@ WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
         systemctl enable "$SERVICE_INSTANCE"
-        systemctl start "$SERVICE_INSTANCE"
+        systemctl restart "$SERVICE_INSTANCE"
         sleep 2
         if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
             STATUS_MSG="Tunnel service $SERVICE_INSTANCE is active."
@@ -625,13 +651,25 @@ fi
 HOST_PORT=8443
 TLS_DOMAIN="github.com"
 USERNAME="proxy_user"
-SECRET=$(openssl rand -hex 16)
-TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
-FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
 INSTALL_DIR="/etc/telemt-docker"
 CONFIG_DIR="$INSTALL_DIR/config"
 mkdir -p "$CONFIG_DIR"
 cd "$INSTALL_DIR"
+
+# Preserve existing secret for idempotency
+SECRET=""
+if [ -f "$CONFIG_DIR/telemt.toml" ]; then
+    SECRET=$(grep -oP 'proxy_user\s*=\s*"\K[a-f0-9]+' "$CONFIG_DIR/telemt.toml" 2>/dev/null | tail -1)
+fi
+if [ -z "$SECRET" ]; then
+    SECRET=$(openssl rand -hex 16)
+    echo "Generated new MTProto proxy secret."
+else
+    echo "Reusing existing MTProto proxy secret."
+fi
+
+TLS_DOMAIN_HEX=$(printf "%s" "$TLS_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
+FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
 
 cat > "$CONFIG_DIR/telemt.toml" <<EOF
 [general]
@@ -689,11 +727,20 @@ services:
         max-file: "3"
 EOF
 
-if ufw status | grep -q active; then
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+# Add MTProto port to UFW (idempotent, no active-check — rules are stored even when UFW is inactive)
+if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    if ! ufw status | grep -qE "${INBOUND_IP}.*${HOST_PORT}/tcp"; then
         ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
+        echo "Allowed MTProto port $HOST_PORT on $INBOUND_IP in UFW."
     else
+        echo "UFW rule for MTProto port $HOST_PORT on $INBOUND_IP already exists, skipping."
+    fi
+else
+    if ! ufw status | grep -qE "${HOST_PORT}/tcp"; then
         ufw allow proto tcp port "$HOST_PORT"
+        echo "Allowed MTProto port $HOST_PORT in UFW."
+    else
+        echo "UFW rule for MTProto port $HOST_PORT already exists, skipping."
     fi
 fi
 echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
