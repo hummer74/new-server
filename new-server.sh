@@ -17,7 +17,7 @@ fi
 if [ -f /etc/os-release ]; then
     source /etc/os-release
     DEBIAN_VERSION_ID="${VERSION_ID:-0}"
-    if [ -z "$VERSION_CODENAME" ] && [ -n "$VERSION" ]; then
+    if [ -z "${VERSION_CODENAME:-}" ] && [ -n "${VERSION:-}" ]; then
         DEBIAN_CODENAME=$(echo "$VERSION" | sed -n 's/.*(\(.*\)).*/\1/p')
     else
         DEBIAN_CODENAME="${VERSION_CODENAME:-unknown}"
@@ -90,12 +90,20 @@ if [ "$NUM_IPS" -gt 1 ]; then
             done
         fi
     else
-        INBOUND_IP=${IPV4_LIST[0]}
-        OUTBOUND_IP=${IPV4_LIST[0]}
+        INBOUND_IP=${IPV4_LIST[0]:-""}
+        OUTBOUND_IP=${IPV4_LIST[0]:-""}
     fi
 else
-    INBOUND_IP=${IPV4_LIST[0]}
-    OUTBOUND_IP=${IPV4_LIST[0]}
+    INBOUND_IP=${IPV4_LIST[0]:-""}
+    OUTBOUND_IP=${IPV4_LIST[0]:-""}
+fi
+
+# Fallback in case IP extraction returned nothing
+if [ -z "$INBOUND_IP" ]; then
+    INBOUND_IP=$(curl -s ifconfig.me || echo "127.0.0.1")
+fi
+if [ -z "$OUTBOUND_IP" ]; then
+    OUTBOUND_IP="$INBOUND_IP"
 fi
 
 # Save config for future updates
@@ -151,13 +159,13 @@ echo "APT sources fixed."
 # --- Updates ---
 echo "# Install all updates."
 dpkg --configure -a
-apt clean -y && rm -rf /var/lib/apt/lists/*
+apt-get clean -y && rm -rf /var/lib/apt/lists/*
 echo "# Updating package lists..."
-apt update -y || { echo "ERROR: apt update failed"; exit 1; }
+apt-get update -y || { echo "ERROR: apt update failed"; exit 1; }
 echo "# Full upgrade..."
-apt full-upgrade -y || { echo "ERROR: apt full-upgrade failed"; exit 1; }
-apt autoremove -y && apt autoclean
-apt autoremove --purge -y
+DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y -o Dpkg::Options::="--force-confold" || { echo "ERROR: apt full-upgrade failed"; exit 1; }
+apt-get autoremove -y && apt-get autoclean
+apt-get autoremove --purge -y
 echo ""
 
 # --- Swap ---
@@ -227,15 +235,11 @@ sysctl --system
 echo ""
 printf "\\033[33m# Configure SSH to listen on ports 22 and 24940.\\033[0m\\n"
 mkdir -p /etc/ssh/sshd_config.d
-SSH_EXTRA=""
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    SSH_EXTRA="ListenAddress 127.0.0.1\nListenAddress $INBOUND_IP"
-fi
 cat > /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 Port 22
 Port 24940
 $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress 127.0.0.1" || true)
-$([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress $INBOUND_IP" || true)
+$([ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ] && echo "ListenAddress $INBOUND_IP" || true)
 PermitRootLogin without-password
 PubkeyAuthentication yes
 EOF
@@ -254,7 +258,7 @@ echo ""
 
 # --- Install Packages ---
 echo "# Install standard tools, Docker, and security packages..."
-apt install sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd
 
 # --- Locales ---
 echo "Set UTF-8 locales."
@@ -378,7 +382,7 @@ if [ ! -s setup.7z ]; then
 fi
 
 if ! command -v xxd >/dev/null; then
-    apt update && apt install xxd -y
+    apt-get update && apt-get install -y xxd
 fi
 
 if ! dd if=setup.7z bs=1 count=6 2>/dev/null | xxd -p | grep -q "377abcaf271c"; then
@@ -479,7 +483,7 @@ echo ""
 # --- UFW ---
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
-    if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
         ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
         ufw allow to "$INBOUND_IP" port "$port" proto tcp
         echo "Allowed SSH port $port on $INBOUND_IP in UFW."
@@ -497,7 +501,7 @@ echo "=============================================="
 echo " Setting up Reverse SSH Tunnel to OpenWrt "
 echo "=============================================="
 if ! command -v autossh &> /dev/null; then
-    apt install autossh -y
+    apt-get install -y autossh
 fi
 KEY_PATH="/root/.ssh/ssh2router-key"
 REVERSE_LOG="/root/reverse_ssh.log"
@@ -631,7 +635,7 @@ if ! command -v ufw >/dev/null; then
     apt-get update && apt-get install -y ufw
 fi
 
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
     EXTERNAL_IP="$INBOUND_IP"
     echo "Split-network active: using Inbound IP ($EXTERNAL_IP) for proxy link."
 else
@@ -685,7 +689,7 @@ EOF
 chmod -R 777 "$CONFIG_DIR"
 
 TELEMT_PORT_BIND="$HOST_PORT"
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
     TELEMT_PORT_BIND="$INBOUND_IP:$HOST_PORT"
 fi
 
@@ -722,7 +726,7 @@ services:
 EOF
 
 # Add MTProto port to UFW (idempotent: delete first, then add)
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
     ufw delete allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp 2>/dev/null || true
     ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
     echo "Allowed MTProto port $HOST_PORT on $INBOUND_IP in UFW."
@@ -767,11 +771,11 @@ echo "Crontab successfully updated (existing jobs preserved)."
 # --- Finalizing ---
 echo ""
 printf "\\033[33mLast update and finalizing.\\033[0m\\n"
-apt clean -y && rm -rf /var/lib/apt/lists/* && apt update -y && apt full-upgrade -y && apt autoremove -y && apt autoclean
-apt autoremove --purge -y
+apt-get clean -y && rm -rf /var/lib/apt/lists/* && apt-get update -y && apt-get full-upgrade -y -o Dpkg::Options::="--force-confold" && apt-get autoremove -y && apt-get autoclean
+apt-get autoremove --purge -y
 
 # Outbound routing (if split-network was chosen)
-if [ "$USE_SPLIT_NETWORK" == "true" ]; then
+if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$OUTBOUND_IP" ]; then
     MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
     GATEWAY=$(ip -4 route | grep default | awk '{print $3}' | head -n1)
     

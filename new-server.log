@@ -11,12 +11,12 @@ WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
 WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
-Get:1 http://security.debian.org/debian-security trixie-security InRelease [43.4 kB]
-Get:2 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:2 http://security.debian.org/debian-security trixie-security InRelease [43.4 kB]
 Get:3 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
-Get:4 http://security.debian.org/debian-security trixie-security/main amd64 Packages [226 kB]
+Get:4 http://security.debian.org/debian-security trixie-security/main amd64 Packages [227 kB]
 Get:5 http://deb.debian.org/debian trixie/main amd64 Packages [9673 kB]
-Get:6 http://security.debian.org/debian-security trixie-security/main Translation-en [136 kB]
+Get:6 http://security.debian.org/debian-security trixie-security/main Translation-en [137 kB]
 Get:7 http://security.debian.org/debian-security trixie-security/non-free-firmware amd64 Packages [544 B]
 Get:8 http://security.debian.org/debian-security trixie-security/non-free-firmware Translation-en [352 B]
 Get:9 http://deb.debian.org/debian trixie/main Translation-en [6484 kB]
@@ -28,7 +28,7 @@ Get:14 http://deb.debian.org/debian trixie/non-free-firmware amd64 Packages [688
 Get:15 http://deb.debian.org/debian trixie/non-free-firmware Translation-en [4704 B]
 Get:16 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
 Get:17 http://deb.debian.org/debian trixie-updates/main Translation-en [2496 B]
-Fetched 17.0 MB in 2s (8420 kB/s)
+Fetched 17.0 MB in 13s (1280 kB/s)
 Reading package lists...
 Building dependency tree...
 Reading state information...
@@ -75,7 +75,7 @@ Upgrading:
   libfreetype6             logsave
 
 Installing dependencies:
-  linux-image-6.12.95+deb13-cloud-amd64
+  linux-image-6.12.96+deb13-cloud-amd64
 
 Suggested packages:
   firmware-linux-free  debian-kernel-handbook  | grub-efi-amd64
@@ -83,104 +83,106 @@ Suggested packages:
 
 Summary:
   Upgrading: 91, Installing: 1, Removing: 0, Not Upgrading: 0
-  Download size: 94.7 MB
-  Space needed: 56.2 MB / 9076 MB available
+  Download size: 94.8 MB
+  Space needed: 56.3 MB / 9076 MB available
 
 Get:1 http://deb.debian.org/debian trixie/main amd64 libc6 amd64 2.41-12+deb13u3 [2850 kB]
-Get:2 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-6.12.95+deb13-cloud-amd64 amd64 6.12.95-1 [34.3 MB]
+Get:2 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-6.12.96+deb13-cloud-amd64 amd64 6.12.96-1 [34.3 MB]
 Get:3 http://deb.debian.org/debian trixie/main amd64 base-files amd64 13.8+deb13u6 [73.3 kB]
 Get:4 http://deb.debian.org/debian trixie/main amd64 bash amd64 5.2.37-2+b9 [1501 kB]
 Get:5 http://deb.debian.org/debian trixie/main amd64 dpkg amd64 1.22.22 [1537 kB]
 Get:6 http://deb.debian.org/debian trixie/main amd64 sed amd64 4.9-2+deb13u1 [331 kB]
-Get:7 http://deb.debian.org/debian trixie/main amd64 init-system-helpers all 1.69~deb13u1 [39.4 kB]
-Get:8 http://deb.debian.org/debian trixie/main amd64 libc-bin amd64 2.41-12+deb13u3 [638 kB]
-Get:9 http://deb.debian.org/debian trixie/main amd64 logsave amd64 1.47.2-3+b11 [24.9 kB]
-Get:10 http://deb.debian.org/debian trixie/main amd64 initramfs-tools all 0.148.4 [17.4 kB]
-Get:11 http://deb.debian.org/debian trixie/main amd64 initramfs-tools-bin amd64 0.148.4 [17.5 kB]
-Get:12 http://deb.debian.org/debian trixie/main amd64 initramfs-tools-core all 0.148.4 [50.7 kB]
-Get:13 http://deb.debian.org/debian trixie/main amd64 libext2fs2t64 amd64 1.47.2-3+b11 [213 kB]
-Get:14 http://deb.debian.org/debian trixie/main amd64 e2fsprogs amd64 1.47.2-3+b11 [591 kB]
-Get:15 http://deb.debian.org/debian trixie/main amd64 linux-base all 4.12.1 [25.5 kB]
-Get:16 http://deb.debian.org/debian trixie/main amd64 systemd-timesyncd amd64 257.13-1~deb13u1 [93.3 kB]
-Get:17 http://deb.debian.org/debian trixie/main amd64 libcap2 amd64 1:2.75-10+deb13u1+b1 [29.0 kB]
-Get:18 http://deb.debian.org/debian trixie/main amd64 libnss-resolve amd64 257.13-1~deb13u1 [142 kB]
-Get:19 http://deb.debian.org/debian trixie/main amd64 openssl-provider-legacy amd64 3.5.6-1~deb13u2 [313 kB]
-Get:20 http://deb.debian.org/debian trixie/main amd64 libssl3t64 amd64 3.5.6-1~deb13u2 [2448 kB]
-Get:21 http://deb.debian.org/debian trixie/main amd64 systemd-resolved amd64 257.13-1~deb13u1 [362 kB]
-Get:22 http://deb.debian.org/debian trixie/main amd64 libpam-systemd amd64 257.13-1~deb13u1 [297 kB]
-Get:23 http://deb.debian.org/debian trixie/main amd64 libsystemd-shared amd64 257.13-1~deb13u1 [2155 kB]
-Get:24 http://deb.debian.org/debian trixie/main amd64 systemd amd64 257.13-1~deb13u1 [3094 kB]
-Get:25 http://deb.debian.org/debian trixie/main amd64 udev amd64 257.13-1~deb13u1 [1419 kB]
-Get:26 http://deb.debian.org/debian trixie/main amd64 systemd-sysv amd64 257.13-1~deb13u1 [64.9 kB]
-Get:27 http://deb.debian.org/debian trixie/main amd64 libsystemd0 amd64 257.13-1~deb13u1 [455 kB]
-Get:28 http://deb.debian.org/debian trixie/main amd64 libudev1 amd64 257.13-1~deb13u1 [152 kB]
-Get:29 http://deb.debian.org/debian trixie/main amd64 init amd64 1.69~deb13u1 [6408 B]
-Get:30 http://deb.debian.org/debian trixie/main amd64 libgssapi-krb5-2 amd64 1.21.3-5+deb13u1 [138 kB]
-Get:31 http://deb.debian.org/debian trixie/main amd64 libkrb5-3 amd64 1.21.3-5+deb13u1 [326 kB]
-Get:32 http://deb.debian.org/debian trixie/main amd64 libkrb5support0 amd64 1.21.3-5+deb13u1 [33.1 kB]
-Get:33 http://deb.debian.org/debian trixie/main amd64 libk5crypto3 amd64 1.21.3-5+deb13u1 [81.2 kB]
-Get:34 http://deb.debian.org/debian trixie/main amd64 libcom-err2 amd64 1.47.2-3+b11 [25.0 kB]
-Get:35 http://deb.debian.org/debian trixie/main amd64 openssh-sftp-server amd64 1:10.0p1-7+deb13u4 [65.3 kB]
-Get:36 http://deb.debian.org/debian trixie/main amd64 openssh-server amd64 1:10.0p1-7+deb13u4 [602 kB]
-Get:37 http://deb.debian.org/debian trixie/main amd64 openssh-client amd64 1:10.0p1-7+deb13u4 [990 kB]
-Get:38 http://deb.debian.org/debian trixie/main amd64 libsqlite3-0 amd64 3.46.1-7+deb13u1 [914 kB]
-Get:39 http://deb.debian.org/debian trixie/main amd64 libwtmpdb0 amd64 0.73.0-3+deb13u1 [13.1 kB]
-Get:40 http://deb.debian.org/debian trixie-updates/main amd64 python3.13 amd64 3.13.5-2+deb13u4 [757 kB]
-Get:41 http://deb.debian.org/debian trixie-updates/main amd64 libpython3.13-stdlib amd64 3.13.5-2+deb13u4 [1957 kB]
-Get:42 http://deb.debian.org/debian trixie-updates/main amd64 python3.13-minimal amd64 3.13.5-2+deb13u4 [2217 kB]
-Get:43 http://deb.debian.org/debian trixie-updates/main amd64 libpython3.13-minimal amd64 3.13.5-2+deb13u4 [863 kB]
-Get:44 http://deb.debian.org/debian trixie/main amd64 tzdata all 2026b-0+deb13u1 [264 kB]
-Get:45 http://deb.debian.org/debian trixie/main amd64 liblzma5 amd64 5.8.1-1+deb13u1 [309 kB]
-Get:46 http://deb.debian.org/debian trixie/main amd64 libpcre2-8-0 amd64 10.46-1~deb13u1 [299 kB]
-Get:47 http://deb.debian.org/debian trixie/main amd64 libglib2.0-0t64 amd64 2.84.4-3~deb13u3 [1519 kB]
-Get:48 http://deb.debian.org/debian trixie/main amd64 qemu-guest-agent amd64 1:10.0.11+ds-0+deb13u1 [555 kB]
-Get:49 http://deb.debian.org/debian trixie/main amd64 openssl amd64 3.5.6-1~deb13u2 [1503 kB]
-Get:50 http://deb.debian.org/debian trixie/main amd64 shim-signed-common all 1.51~1+deb13u1+16.1-2~deb13u1 [15.9 kB]
-Get:51 http://deb.debian.org/debian trixie/main amd64 shim-unsigned amd64 16.1-2~deb13u1 [453 kB]
-Get:52 http://deb.debian.org/debian trixie/main amd64 shim-helpers-amd64-signed amd64 1+16.1+2~deb13u1 [301 kB]
-Get:53 http://deb.debian.org/debian trixie/main amd64 grub2-common amd64 2.12-9+deb13u2 [641 kB]
-Get:54 http://deb.debian.org/debian trixie/main amd64 grub-pc-bin amd64 2.12-9+deb13u2 [1021 kB]
-Get:55 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-unsigned amd64 2.12-9+deb13u2 [1362 kB]
-Get:56 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-bin amd64 2.12-9+deb13u2 [1053 kB]
-Get:57 http://deb.debian.org/debian trixie/main amd64 grub-common amd64 2.12-9+deb13u2 [2899 kB]
-Get:58 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-signed amd64 1+2.12+9+deb13u2 [1363 kB]
-Get:59 http://deb.debian.org/debian trixie/main amd64 libpng16-16t64 amd64 1.6.48-1+deb13u5 [283 kB]
-Get:60 http://deb.debian.org/debian trixie/main amd64 libfreetype6 amd64 2.13.3+dfsg-1+deb13u1 [452 kB]
-Get:61 http://deb.debian.org/debian trixie/main amd64 shim-signed amd64 1.51~1+deb13u1+16.1-2~deb13u1 [347 kB]
-Get:62 http://deb.debian.org/debian trixie/main amd64 sudo amd64 1.9.16p2-3+deb13u2 [2086 kB]
-Get:63 http://deb.debian.org/debian trixie/main amd64 sqv amd64 1.3.0-3+b2 [661 kB]
-Get:64 http://deb.debian.org/debian trixie/main amd64 dhcpcd-base amd64 1:10.1.0-11+deb13u3 [201 kB]
-Get:65 http://deb.debian.org/debian trixie/main amd64 linux-sysctl-defaults all 4.12.1 [5724 B]
-Get:66 http://deb.debian.org/debian trixie/main amd64 nano amd64 8.4-1+deb13u1 [645 kB]
-Get:67 http://deb.debian.org/debian trixie/main amd64 libnghttp2-14 amd64 1.64.0-1.1+deb13u1 [76.2 kB]
-Get:68 http://deb.debian.org/debian trixie/main amd64 libxml2 amd64 2.12.7+dfsg+really2.9.14-2.1+deb13u3 [700 kB]
-Get:69 http://deb.debian.org/debian trixie/main amd64 bind9-host amd64 1:9.20.23-1~deb13u1 [56.0 kB]
-Get:70 http://deb.debian.org/debian trixie/main amd64 bind9-libs amd64 1:9.20.23-1~deb13u1 [1242 kB]
-Get:71 http://deb.debian.org/debian trixie/main amd64 libc-l10n all 2.41-12+deb13u3 [740 kB]
-Get:72 http://deb.debian.org/debian trixie/main amd64 locales all 2.41-12+deb13u3 [3925 kB]
-Get:73 http://deb.debian.org/debian trixie/main amd64 xz-utils amd64 5.8.1-1+deb13u1 [659 kB]
-Get:74 http://deb.debian.org/debian trixie/main amd64 python3-idna all 3.10-1+deb13u1 [43.0 kB]
-Get:75 http://deb.debian.org/debian trixie/main amd64 python3-urllib3 all 2.3.0-3+deb13u2 [115 kB]
-Get:76 http://deb.debian.org/debian trixie/main amd64 python3-requests all 2.32.3+dfsg-5+deb13u1 [72.2 kB]
-Get:77 http://deb.debian.org/debian trixie/main amd64 cloud-init all 25.1.4-1+deb13u1 [661 kB]
-Get:78 http://deb.debian.org/debian trixie/main amd64 libssh2-1t64 amd64 1.11.1-1+deb13u1 [245 kB]
-Get:79 http://deb.debian.org/debian trixie/main amd64 curl amd64 8.14.1-2+deb13u4 [270 kB]
-Get:80 http://deb.debian.org/debian trixie/main amd64 libcurl4t64 amd64 8.14.1-2+deb13u4 [392 kB]
-Get:81 http://deb.debian.org/debian trixie/main amd64 distro-info-data all 0.66+deb13u2 [6792 B]
-Get:82 http://deb.debian.org/debian trixie/main amd64 ethtool amd64 1:6.14.2-1 [227 kB]
-Get:83 http://deb.debian.org/debian trixie/main amd64 libcap2-bin amd64 1:2.75-10+deb13u1+b1 [36.4 kB]
-Get:84 http://deb.debian.org/debian trixie/main amd64 libtasn1-6 amd64 4.20.0-2+deb13u1 [50.1 kB]
-Get:85 http://deb.debian.org/debian trixie/main amd64 libgnutls30t64 amd64 3.8.9-3+deb13u4 [1469 kB]
-Get:86 http://deb.debian.org/debian trixie/main amd64 libnss-myhostname amd64 257.13-1~deb13u1 [114 kB]
-Get:87 http://deb.debian.org/debian trixie/main amd64 libsodium23 amd64 1.0.18-1+deb13u1 [165 kB]
-Get:88 http://deb.debian.org/debian trixie/main amd64 libss2 amd64 1.47.2-3+b11 [29.7 kB]
-Get:89 http://deb.debian.org/debian trixie/main amd64 python3-cryptography amd64 43.0.0-3+deb13u1 [942 kB]
-Get:90 http://deb.debian.org/debian trixie/main amd64 python3-jwt all 2.10.1-2+deb13u1 [31.8 kB]
-Get:91 http://deb.debian.org/debian trixie/main amd64 qemu-utils amd64 1:10.0.11+ds-0+deb13u1 [2015 kB]
-Get:92 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-cloud-amd64 amd64 6.12.95-1 [1500 B]
+Get:7 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-cloud-amd64 amd64 6.12.96-1 [1504 B]
+Ign:6 http://deb.debian.org/debian trixie/main amd64 sed amd64 4.9-2+deb13u1
+Get:8 http://deb.debian.org/debian trixie/main amd64 init-system-helpers all 1.69~deb13u1 [39.4 kB]
+Get:9 http://deb.debian.org/debian trixie/main amd64 libc-bin amd64 2.41-12+deb13u3 [638 kB]
+Get:10 http://deb.debian.org/debian trixie/main amd64 logsave amd64 1.47.2-3+b11 [24.9 kB]
+Get:11 http://deb.debian.org/debian trixie/main amd64 initramfs-tools all 0.148.4 [17.4 kB]
+Get:12 http://deb.debian.org/debian trixie/main amd64 initramfs-tools-bin amd64 0.148.4 [17.5 kB]
+Get:13 http://deb.debian.org/debian trixie/main amd64 initramfs-tools-core all 0.148.4 [50.7 kB]
+Get:14 http://deb.debian.org/debian trixie/main amd64 libext2fs2t64 amd64 1.47.2-3+b11 [213 kB]
+Get:15 http://deb.debian.org/debian trixie/main amd64 e2fsprogs amd64 1.47.2-3+b11 [591 kB]
+Get:16 http://deb.debian.org/debian trixie/main amd64 linux-base all 4.12.1 [25.5 kB]
+Get:17 http://deb.debian.org/debian trixie/main amd64 systemd-timesyncd amd64 257.13-1~deb13u1 [93.3 kB]
+Get:6 http://deb.debian.org/debian trixie/main amd64 sed amd64 4.9-2+deb13u1 [331 kB]
+Get:18 http://deb.debian.org/debian trixie/main amd64 libcap2 amd64 1:2.75-10+deb13u1+b1 [29.0 kB]
+Get:19 http://deb.debian.org/debian trixie/main amd64 libnss-resolve amd64 257.13-1~deb13u1 [142 kB]
+Get:20 http://deb.debian.org/debian trixie/main amd64 openssl-provider-legacy amd64 3.5.6-1~deb13u2 [313 kB]
+Get:21 http://deb.debian.org/debian trixie/main amd64 libssl3t64 amd64 3.5.6-1~deb13u2 [2448 kB]
+Get:22 http://deb.debian.org/debian trixie/main amd64 systemd-resolved amd64 257.13-1~deb13u1 [362 kB]
+Get:23 http://deb.debian.org/debian trixie/main amd64 libpam-systemd amd64 257.13-1~deb13u1 [297 kB]
+Get:24 http://deb.debian.org/debian trixie/main amd64 libsystemd-shared amd64 257.13-1~deb13u1 [2155 kB]
+Get:25 http://deb.debian.org/debian trixie/main amd64 systemd amd64 257.13-1~deb13u1 [3094 kB]
+Get:26 http://deb.debian.org/debian trixie/main amd64 udev amd64 257.13-1~deb13u1 [1419 kB]
+Get:27 http://deb.debian.org/debian trixie/main amd64 systemd-sysv amd64 257.13-1~deb13u1 [64.9 kB]
+Get:28 http://deb.debian.org/debian trixie/main amd64 libsystemd0 amd64 257.13-1~deb13u1 [455 kB]
+Get:29 http://deb.debian.org/debian trixie/main amd64 libudev1 amd64 257.13-1~deb13u1 [152 kB]
+Get:30 http://deb.debian.org/debian trixie/main amd64 init amd64 1.69~deb13u1 [6408 B]
+Get:31 http://deb.debian.org/debian trixie/main amd64 libgssapi-krb5-2 amd64 1.21.3-5+deb13u1 [138 kB]
+Get:32 http://deb.debian.org/debian trixie/main amd64 libkrb5-3 amd64 1.21.3-5+deb13u1 [326 kB]
+Get:33 http://deb.debian.org/debian trixie/main amd64 libkrb5support0 amd64 1.21.3-5+deb13u1 [33.1 kB]
+Get:34 http://deb.debian.org/debian trixie/main amd64 libk5crypto3 amd64 1.21.3-5+deb13u1 [81.2 kB]
+Get:35 http://deb.debian.org/debian trixie/main amd64 libcom-err2 amd64 1.47.2-3+b11 [25.0 kB]
+Get:36 http://deb.debian.org/debian trixie/main amd64 openssh-sftp-server amd64 1:10.0p1-7+deb13u4 [65.3 kB]
+Get:37 http://deb.debian.org/debian trixie/main amd64 openssh-server amd64 1:10.0p1-7+deb13u4 [602 kB]
+Get:38 http://deb.debian.org/debian trixie/main amd64 openssh-client amd64 1:10.0p1-7+deb13u4 [990 kB]
+Get:39 http://deb.debian.org/debian trixie/main amd64 libsqlite3-0 amd64 3.46.1-7+deb13u1 [914 kB]
+Get:40 http://deb.debian.org/debian trixie/main amd64 libwtmpdb0 amd64 0.73.0-3+deb13u1 [13.1 kB]
+Get:41 http://deb.debian.org/debian trixie-updates/main amd64 python3.13 amd64 3.13.5-2+deb13u4 [757 kB]
+Get:42 http://deb.debian.org/debian trixie-updates/main amd64 libpython3.13-stdlib amd64 3.13.5-2+deb13u4 [1957 kB]
+Get:43 http://deb.debian.org/debian trixie-updates/main amd64 python3.13-minimal amd64 3.13.5-2+deb13u4 [2217 kB]
+Get:44 http://deb.debian.org/debian trixie-updates/main amd64 libpython3.13-minimal amd64 3.13.5-2+deb13u4 [863 kB]
+Get:45 http://deb.debian.org/debian trixie/main amd64 tzdata all 2026b-0+deb13u1 [264 kB]
+Get:46 http://deb.debian.org/debian trixie/main amd64 liblzma5 amd64 5.8.1-1+deb13u1 [309 kB]
+Get:47 http://deb.debian.org/debian trixie/main amd64 libpcre2-8-0 amd64 10.46-1~deb13u1 [299 kB]
+Get:48 http://deb.debian.org/debian trixie/main amd64 libglib2.0-0t64 amd64 2.84.4-3~deb13u3 [1519 kB]
+Get:49 http://deb.debian.org/debian trixie/main amd64 qemu-guest-agent amd64 1:10.0.11+ds-0+deb13u1 [555 kB]
+Get:50 http://deb.debian.org/debian trixie/main amd64 openssl amd64 3.5.6-1~deb13u2 [1503 kB]
+Get:51 http://deb.debian.org/debian trixie/main amd64 shim-signed-common all 1.51~1+deb13u1+16.1-2~deb13u1 [15.9 kB]
+Get:52 http://deb.debian.org/debian trixie/main amd64 shim-unsigned amd64 16.1-2~deb13u1 [453 kB]
+Get:53 http://deb.debian.org/debian trixie/main amd64 shim-helpers-amd64-signed amd64 1+16.1+2~deb13u1 [301 kB]
+Get:54 http://deb.debian.org/debian trixie/main amd64 grub2-common amd64 2.12-9+deb13u2 [641 kB]
+Get:55 http://deb.debian.org/debian trixie/main amd64 grub-pc-bin amd64 2.12-9+deb13u2 [1021 kB]
+Get:56 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-unsigned amd64 2.12-9+deb13u2 [1362 kB]
+Get:57 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-bin amd64 2.12-9+deb13u2 [1053 kB]
+Get:58 http://deb.debian.org/debian trixie/main amd64 grub-common amd64 2.12-9+deb13u2 [2899 kB]
+Get:59 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-signed amd64 1+2.12+9+deb13u2 [1363 kB]
+Get:60 http://deb.debian.org/debian trixie/main amd64 libpng16-16t64 amd64 1.6.48-1+deb13u5 [283 kB]
+Get:61 http://deb.debian.org/debian trixie/main amd64 libfreetype6 amd64 2.13.3+dfsg-1+deb13u1 [452 kB]
+Get:62 http://deb.debian.org/debian trixie/main amd64 shim-signed amd64 1.51~1+deb13u1+16.1-2~deb13u1 [347 kB]
+Get:63 http://deb.debian.org/debian trixie/main amd64 sudo amd64 1.9.16p2-3+deb13u2 [2086 kB]
+Get:64 http://deb.debian.org/debian trixie/main amd64 sqv amd64 1.3.0-3+b2 [661 kB]
+Get:65 http://deb.debian.org/debian trixie/main amd64 dhcpcd-base amd64 1:10.1.0-11+deb13u3 [201 kB]
+Get:66 http://deb.debian.org/debian trixie/main amd64 linux-sysctl-defaults all 4.12.1 [5724 B]
+Get:67 http://deb.debian.org/debian trixie/main amd64 nano amd64 8.4-1+deb13u1 [645 kB]
+Get:68 http://deb.debian.org/debian trixie/main amd64 libnghttp2-14 amd64 1.64.0-1.1+deb13u1 [76.2 kB]
+Get:69 http://deb.debian.org/debian trixie/main amd64 libxml2 amd64 2.12.7+dfsg+really2.9.14-2.1+deb13u3 [700 kB]
+Get:70 http://deb.debian.org/debian trixie/main amd64 bind9-host amd64 1:9.20.23-1~deb13u1 [56.0 kB]
+Get:71 http://deb.debian.org/debian trixie/main amd64 bind9-libs amd64 1:9.20.23-1~deb13u1 [1242 kB]
+Get:72 http://deb.debian.org/debian trixie/main amd64 libc-l10n all 2.41-12+deb13u3 [740 kB]
+Get:73 http://deb.debian.org/debian trixie/main amd64 locales all 2.41-12+deb13u3 [3925 kB]
+Get:74 http://deb.debian.org/debian trixie/main amd64 xz-utils amd64 5.8.1-1+deb13u1 [659 kB]
+Get:75 http://deb.debian.org/debian trixie/main amd64 python3-idna all 3.10-1+deb13u1 [43.0 kB]
+Get:76 http://deb.debian.org/debian trixie/main amd64 python3-urllib3 all 2.3.0-3+deb13u2 [115 kB]
+Get:77 http://deb.debian.org/debian trixie/main amd64 python3-requests all 2.32.3+dfsg-5+deb13u1 [72.2 kB]
+Get:78 http://deb.debian.org/debian trixie/main amd64 cloud-init all 25.1.4-1+deb13u1 [661 kB]
+Get:79 http://deb.debian.org/debian trixie/main amd64 libssh2-1t64 amd64 1.11.1-1+deb13u1 [245 kB]
+Get:80 http://deb.debian.org/debian trixie/main amd64 curl amd64 8.14.1-2+deb13u4 [270 kB]
+Get:81 http://deb.debian.org/debian trixie/main amd64 libcurl4t64 amd64 8.14.1-2+deb13u4 [392 kB]
+Get:82 http://deb.debian.org/debian trixie/main amd64 distro-info-data all 0.66+deb13u2 [6792 B]
+Get:83 http://deb.debian.org/debian trixie/main amd64 ethtool amd64 1:6.14.2-1 [227 kB]
+Get:84 http://deb.debian.org/debian trixie/main amd64 libcap2-bin amd64 1:2.75-10+deb13u1+b1 [36.4 kB]
+Get:85 http://deb.debian.org/debian trixie/main amd64 libtasn1-6 amd64 4.20.0-2+deb13u1 [50.1 kB]
+Get:86 http://deb.debian.org/debian trixie/main amd64 libgnutls30t64 amd64 3.8.9-3+deb13u4 [1469 kB]
+Get:87 http://deb.debian.org/debian trixie/main amd64 libnss-myhostname amd64 257.13-1~deb13u1 [114 kB]
+Get:88 http://deb.debian.org/debian trixie/main amd64 libsodium23 amd64 1.0.18-1+deb13u1 [165 kB]
+Get:89 http://deb.debian.org/debian trixie/main amd64 libss2 amd64 1.47.2-3+b11 [29.7 kB]
+Get:90 http://deb.debian.org/debian trixie/main amd64 python3-cryptography amd64 43.0.0-3+deb13u1 [942 kB]
+Get:91 http://deb.debian.org/debian trixie/main amd64 python3-jwt all 2.10.1-2+deb13u1 [31.8 kB]
+Get:92 http://deb.debian.org/debian trixie/main amd64 qemu-utils amd64 1:10.0.11+ds-0+deb13u1 [2015 kB]
 apt-listchanges: Reading changelogs...
 Preconfiguring packages ...
-Fetched 94.7 MB in 31s (3098 kB/s)
+Fetched 94.5 MB in 1min 7s (1417 kB/s)
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 20691 files and directories currently installed.)
 Preparing to unpack .../libc6_2.41-12+deb13u3_amd64.deb ...
 Unpacking libc6:amd64 (2.41-12+deb13u3) over (2.41-12) ...
@@ -276,10 +278,10 @@ Setting up systemd-sysv (257.13-1~deb13u1) ...
 Preparing to unpack .../init_1.69~deb13u1_amd64.deb ...
 Unpacking init (1.69~deb13u1) over (1.68) ...
 Setting up linux-base (4.12.1) ...
-Selecting previously unselected package linux-image-6.12.95+deb13-cloud-amd64.
+Selecting previously unselected package linux-image-6.12.96+deb13-cloud-amd64.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 20693 files and directories currently installed.)
-Preparing to unpack .../0-linux-image-6.12.95+deb13-cloud-amd64_6.12.95-1_amd64.deb ...
-Unpacking linux-image-6.12.95+deb13-cloud-amd64 (6.12.95-1) ...
+Preparing to unpack .../0-linux-image-6.12.96+deb13-cloud-amd64_6.12.96-1_amd64.deb ...
+Unpacking linux-image-6.12.96+deb13-cloud-amd64 (6.12.96-1) ...
 Preparing to unpack .../1-libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb ...
 Unpacking libgssapi-krb5-2:amd64 (1.21.3-5+deb13u1) over (1.21.3-5) ...
 Preparing to unpack .../2-libkrb5-3_1.21.3-5+deb13u1_amd64.deb ...
@@ -408,8 +410,8 @@ Preparing to unpack .../23-libsodium23_1.0.18-1+deb13u1_amd64.deb ...
 Unpacking libsodium23:amd64 (1.0.18-1+deb13u1) over (1.0.18-1+b2) ...
 Preparing to unpack .../24-libss2_1.47.2-3+b11_amd64.deb ...
 Unpacking libss2:amd64 (1.47.2-3+b11) over (1.47.2-3+b3) ...
-Preparing to unpack .../25-linux-image-cloud-amd64_6.12.95-1_amd64.deb ...
-Unpacking linux-image-cloud-amd64 (6.12.95-1) over (6.12.41-1) ...
+Preparing to unpack .../25-linux-image-cloud-amd64_6.12.96-1_amd64.deb ...
+Unpacking linux-image-cloud-amd64 (6.12.96-1) over (6.12.41-1) ...
 Preparing to unpack .../26-python3-cryptography_43.0.0-3+deb13u1_amd64.deb ...
 Unpacking python3-cryptography (43.0.0-3+deb13u1) over (43.0.0-3) ...
 Preparing to unpack .../27-python3-jwt_2.10.1-2+deb13u1_all.deb ...
@@ -430,8 +432,8 @@ Setting up libkrb5support0:amd64 (1.21.3-5+deb13u1) ...
 Setting up tzdata (2026b-0+deb13u1) ...
 
 Current default time zone: 'Europe/Moscow'
-Local time is now:      Mon Jul 20 12:20:00 MSK 2026.
-Universal Time is now:  Mon Jul 20 09:20:00 UTC 2026.
+Local time is now:      Tue Jul 21 21:47:45 MSK 2026.
+Universal Time is now:  Tue Jul 21 18:47:45 UTC 2026.
 Run 'dpkg-reconfigure tzdata' if you wish to change it.
 
 Setting up libcap2-bin (1:2.75-10+deb13u1+b1) ...
@@ -491,13 +493,13 @@ Setting up libcurl4t64:amd64 (8.14.1-2+deb13u4) ...
 Setting up bind9-libs:amd64 (1:9.20.23-1~deb13u1) ...
 Setting up openssh-client (1:10.0p1-7+deb13u4) ...
 Failed to connect to user scope bus via machine transport: No such file or directory
-Setting up linux-image-6.12.95+deb13-cloud-amd64 (6.12.95-1) ...
+Setting up linux-image-6.12.96+deb13-cloud-amd64 (6.12.96-1) ...
 /etc/kernel/postinst.d/initramfs-tools:
-update-initramfs: Generating /boot/initrd.img-6.12.95+deb13-cloud-amd64
+update-initramfs: Generating /boot/initrd.img-6.12.96+deb13-cloud-amd64
 /etc/kernel/postinst.d/zz-update-grub:
 Generating grub configuration file ...
-Found linux image: /boot/vmlinuz-6.12.95+deb13-cloud-amd64
-Found initrd image: /boot/initrd.img-6.12.95+deb13-cloud-amd64
+Found linux image: /boot/vmlinuz-6.12.96+deb13-cloud-amd64
+Found initrd image: /boot/initrd.img-6.12.96+deb13-cloud-amd64
 Found linux image: /boot/vmlinuz-6.12.41+deb13-cloud-amd64
 Found initrd image: /boot/initrd.img-6.12.41+deb13-cloud-amd64
 Adding boot menu entry for UEFI Firmware Settings ...
@@ -505,7 +507,7 @@ done
 Setting up grub-common (2.12-9+deb13u2) ...
 Installing new version of config file /etc/grub.d/10_linux ...
 Installing new version of config file /etc/grub.d/20_linux_xen ...
-Setting up linux-image-cloud-amd64 (6.12.95-1) ...
+Setting up linux-image-cloud-amd64 (6.12.96-1) ...
 Setting up curl (8.14.1-2+deb13u4) ...
 Setting up bind9-host (1:9.20.23-1~deb13u1) ...
 Setting up openssh-sftp-server (1:10.0p1-7+deb13u4) ...
@@ -534,7 +536,7 @@ Setting up openssh-server (1:10.0p1-7+deb13u4) ...
 [K
 [K
 [K
-[K[1;1H[37mPackage configuration[3;3H[30m[47m┌──────────────────────┤ [31mConfiguring openssh-server[30m ├──────────────────────┐[4;3H│ A new version (/tmp/tmp.Vp8T7ndFsG) of configuration file                │[97m[40m [5;3H[30m[47m│ /etc/ssh/sshd_config is available, but the version installed currently   │[97m[40m [6;3H[30m[47m│ has been locally modified.                                               │[97m[40m [7;3H[30m[47m│                                                                          │[97m[40m [8;3H[30m[47m│ What do you want to do about modified configuration file sshd_config?    │[97m[40m [9;3H[30m[47m│                                                                          │[97m[40m [10;3H[30m[47m│           install the package maintainer's version                       │[97m[40m [11;3H[30m[47m│           [37m[41mkeep the local version currently installed          [30m[47m           │[97m[40m [12;3H[30m[47m│           show the differences between the versions                      │[97m[40m [13;3H[30m[47m│           show a side-by-side difference between the versions            │[97m[40m [14;3H[30m[47m│           show a 3-way difference between available versions             │[97m[40m [15;3H[30m[47m│           do a 3-way merge between available versions                    │[97m[40m [16;3H[30m[47m│           start a new shell to examine the situation                     │[97m[40m [17;3H[30m[47m│                                                                          │[97m[40m [18;3H[30m[47m│                                                                          │[97m[40m [19;3H[30m[47m│                                  <Ok>                                    │[97m[40m [20;3H[30m[47m│                                                                          │[97m[40m [21;3H[30m[47m└──────────────────────────────────────────────────────────────────────────┘[97m[40m [22;4H                                                                            [11;15H[A[37m[41minstall the package maintainer's version            [11;15H[30m[47mkeep the local version currently installed          [10;15H[?12l[?25h[24;1H[37m[40m(B[m[39;49m[K[?1049l[23;0;0tReplacing config file /etc/ssh/sshd_config with new version
+[K[1;1H[37mPackage configuration[3;3H[30m[47m┌──────────────────────┤ [31mConfiguring openssh-server[30m ├──────────────────────┐[4;3H│ A new version (/tmp/tmp.daUy2WLRVu) of configuration file                │[97m[40m [5;3H[30m[47m│ /etc/ssh/sshd_config is available, but the version installed currently   │[97m[40m [6;3H[30m[47m│ has been locally modified.                                               │[97m[40m [7;3H[30m[47m│                                                                          │[97m[40m [8;3H[30m[47m│ What do you want to do about modified configuration file sshd_config?    │[97m[40m [9;3H[30m[47m│                                                                          │[97m[40m [10;3H[30m[47m│           install the package maintainer's version                       │[97m[40m [11;3H[30m[47m│           [37m[41mkeep the local version currently installed          [30m[47m           │[97m[40m [12;3H[30m[47m│           show the differences between the versions                      │[97m[40m [13;3H[30m[47m│           show a side-by-side difference between the versions            │[97m[40m [14;3H[30m[47m│           show a 3-way difference between available versions             │[97m[40m [15;3H[30m[47m│           do a 3-way merge between available versions                    │[97m[40m [16;3H[30m[47m│           start a new shell to examine the situation                     │[97m[40m [17;3H[30m[47m│                                                                          │[97m[40m [18;3H[30m[47m│                                                                          │[97m[40m [19;3H[30m[47m│                                  <Ok>                                    │[97m[40m [20;3H[30m[47m│                                                                          │[97m[40m [21;3H[30m[47m└──────────────────────────────────────────────────────────────────────────┘[97m[40m [22;4H                                                                            [11;15H[30m[47mkeep the local version currently installed          [12;15H[37m[41mshow the differences between the versions           [12;15H[Akeep the local version currently installed          [12;15H[30m[47mshow the differences between the versions           [11;15H[A[37m[41minstall the package maintainer's version            [11;15H[30m[47mkeep the local version currently installed          [10;15H[?12l[?25h[24;1H[37m[40m(B[m[39;49m[K[?1049l[23;0;0tReplacing config file /etc/ssh/sshd_config with new version
 ssh.socket is a disabled or a static unit not running, not starting it.
 Setting up grub-efi-amd64-unsigned (2.12-9+deb13u2) ...
 Setting up grub2-common (2.12-9+deb13u2) ...
@@ -553,7 +555,7 @@ Processing triggers for systemd (257.13-1~deb13u1) ...
 Processing triggers for man-db (2.13.1-1) ...
 Processing triggers for dbus (1.16.2-2) ...
 Processing triggers for initramfs-tools (0.148.4) ...
-update-initramfs: Generating /boot/initrd.img-6.12.95+deb13-cloud-amd64
+update-initramfs: Generating /boot/initrd.img-6.12.96+deb13-cloud-amd64
 
 WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
@@ -581,14 +583,14 @@ Summary:
 Creating /swapfile of size 512 MB...
 Using fallocate.
 Setting up swapspace version 1, size = 512 MiB (536866816 bytes)
-no label, UUID=98378836-f974-48ce-a69b-cab62eda6d44
+no label, UUID=2d0dd750-38bd-4c78-b53c-f98215f90857
 Swap configured.
 [33m# Change PRETTY hostname!!![0m
 Type new PRETTY hostname here: 
 Hard-disabling IPv6 and blocking ICMP...
 Generating grub configuration file ...
-Found linux image: /boot/vmlinuz-6.12.95+deb13-cloud-amd64
-Found initrd image: /boot/initrd.img-6.12.95+deb13-cloud-amd64
+Found linux image: /boot/vmlinuz-6.12.96+deb13-cloud-amd64
+Found initrd image: /boot/initrd.img-6.12.96+deb13-cloud-amd64
 Found linux image: /boot/vmlinuz-6.12.41+deb13-cloud-amd64
 Found initrd image: /boot/initrd.img-6.12.41+deb13-cloud-amd64
 Adding boot menu entry for UEFI Firmware Settings ...
@@ -713,7 +715,7 @@ Suggested packages:
 Summary:
   Upgrading: 0, Installing: 67, Removing: 0, Not Upgrading: 0
   Download size: 23.4 MB
-  Space needed: 106 MB / 8444 MB available
+  Space needed: 106 MB / 8443 MB available
 
 Get:1 http://deb.debian.org/debian trixie/main amd64 cron-daemon-common all 3.0pl1-197 [17.8 kB]
 Get:2 http://deb.debian.org/debian trixie/main amd64 cron amd64 3.0pl1-197 [87.4 kB]
@@ -783,7 +785,7 @@ Get:65 http://deb.debian.org/debian trixie/main amd64 unzip amd64 6.0-29 [173 kB
 Get:66 http://deb.debian.org/debian trixie/main amd64 whois amd64 5.6.3 [72.4 kB]
 Get:67 http://deb.debian.org/debian trixie/main amd64 gnupg-utils amd64 2.4.7-21+deb13u1+b4 [194 kB]
 Preconfiguring packages ...
-Fetched 23.4 MB in 17s (1344 kB/s)
+Fetched 23.4 MB in 3s (6835 kB/s)
 Selecting previously unselected package cron-daemon-common.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 22098 files and directories currently installed.)
 Preparing to unpack .../cron-daemon-common_3.0pl1-197_all.deb ...
@@ -1099,25 +1101,25 @@ Executing: /usr/lib/systemd/systemd-sysv-install enable unattended-upgrades
 WARNING: unattended-upgrades may not work. Check allowed origins.
 
 
---2026-07-20 12:21:32--  https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z
-Распознаётся raw.githubusercontent.com (raw.githubusercontent.com)… 185.199.108.133, 185.199.109.133, 185.199.110.133, ...
+--2026-07-21 22:29:33--  https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z
+Распознаётся raw.githubusercontent.com (raw.githubusercontent.com)… 185.199.108.133, 185.199.109.133, 185.199.111.133, ...
 Подключение к raw.githubusercontent.com (raw.githubusercontent.com)|185.199.108.133|:443... соединение установлено.
 HTTP-запрос отправлен. Ожидание ответа… 200 OK
 Длина: 50496 (49K) [application/octet-stream]
 Сохранение в: «setup.7z»
 
-     0K .......... .......... .......... .......... ......... 100% 1,89M=0,03s
+     0K .......... .......... .......... .......... ......... 100% 2,40M=0,02s
 
-2026-07-20 12:21:33 (1,89 MB/s) - «setup.7z» сохранён [50496/50496]
+2026-07-21 22:29:33 (2,40 MB/s) - «setup.7z» сохранён [50496/50496]
 
 
 WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
-Сущ:1 http://deb.debian.org/debian trixie InRelease
-Сущ:2 http://security.debian.org/debian-security trixie-security InRelease
+Сущ:1 http://security.debian.org/debian-security trixie-security InRelease
+Сущ:2 http://deb.debian.org/debian trixie InRelease
 Сущ:3 http://deb.debian.org/debian trixie-updates InRelease
 Пол:4 http://deb.debian.org/debian trixie/main Translation-ru [462 kB]
-Получено 462 kB за 0с (1 017 kB/s)
+Получено 462 kB за 1с (475 kB/s)
 Чтение списков пакетов…
 Построение дерева зависимостей…
 Чтение информации о состоянии…
@@ -1125,6 +1127,7 @@ WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
 WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 
+Ожидание блокировки кэша: Не удалось получить блокировку файла /var/lib/dpkg/lock-frontend. Она удерживается процессом 14047 (unattended-upgr)…
 Чтение списков пакетов…
 Построение дерева зависимостей…
 Чтение информации о состоянии…
@@ -1134,10 +1137,10 @@ WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 Сводка:
   Обновление: 0, Установка: 1, Удаление: 0, Пропуск обновления: 0
   Объём загрузки: 98,8 kB
-  Требуемое пространство: 158 kB / 8 320 MB доступно
+  Требуемое пространство: 158 kB / 8 319 MB доступно
 
 Пол:1 http://deb.debian.org/debian trixie/main amd64 xxd amd64 2:9.1.1230-2 [98,8 kB]
-Получено 98,8 kB за 0с (959 kB/s)
+Получено 98,8 kB за 0с (1 027 kB/s)
 Выбор ранее не выбранного пакета xxd.
 (Чтение базы данных … (Чтение базы данных … 5%(Чтение базы данных … 10%(Чтение базы данных … 15%(Чтение базы данных … 20%(Чтение базы данных … 25%(Чтение базы данных … 30%(Чтение базы данных … 35%(Чтение базы данных … 40%(Чтение базы данных … 45%(Чтение базы данных … 50%(Чтение базы данных … 55%(Чтение базы данных … 60%(Чтение базы данных … 65%(Чтение базы данных … 70%(Чтение базы данных … 75%(Чтение базы данных … 80%(Чтение базы данных … 85%(Чтение базы данных … 90%(Чтение базы данных … 95%(Чтение базы данных … 100%(Чтение базы данных … на данный момент установлено 27010 файлов и каталогов.)
 Подготовка к распаковке …/xxd_2%3a9.1.1230-2_amd64.deb …
@@ -1145,8 +1148,6 @@ WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
 Настраивается пакет xxd (2:9.1.1230-2) …
 Обрабатываются триггеры для man-db (2.13.1-1) …
 Enter master password for setup & user (attempt 1/5): 
-Wrong password.
-Enter master password for setup & user (attempt 2/5): 
 Archive extracted successfully.
 Fixing permissions...
 
@@ -1177,14 +1178,9 @@ Files: 12
 Size:       11610
 Compressed: 4396
 
-  UNIT          LOAD   ACTIVE SUB    DESCRIPTION
-● exim4.service loaded failed failed exim Mail Transport Agent
+  UNIT LOAD ACTIVE SUB DESCRIPTION
 
-Legend: LOAD   → Reflects whether the unit definition was properly loaded.
-        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
-        SUB    → The low-level unit activation state, values depend on unit type.
-
-1 loaded units listed.
+0 loaded units listed.
 
 Configuring UFW firewall...
 ERROR: Need 'to' or 'from' clause
