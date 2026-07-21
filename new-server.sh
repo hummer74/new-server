@@ -480,19 +480,13 @@ echo ""
 echo "Configuring UFW firewall..."
 for port in 22 24940; do
     if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-        if ! ufw status | grep -qE "${INBOUND_IP}.*${port}/tcp"; then
-            ufw allow to "$INBOUND_IP" port "$port" proto tcp
-            echo "Allowed SSH port $port on $INBOUND_IP in UFW."
-        else
-            echo "UFW rule for port $port on $INBOUND_IP already exists, skipping."
-        fi
+        ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
+        ufw allow to "$INBOUND_IP" port "$port" proto tcp
+        echo "Allowed SSH port $port on $INBOUND_IP in UFW."
     else
-        if ! ufw status | grep -qE "${port}/tcp"; then
-            ufw allow proto tcp port "$port"
-            echo "Allowed SSH port $port in UFW."
-        else
-            echo "UFW rule for port $port already exists, skipping."
-        fi
+        ufw delete allow proto tcp port "$port" 2>/dev/null || true
+        ufw allow proto tcp port "$port"
+        echo "Allowed SSH port $port in UFW."
     fi
 done
 echo "SSH ports are allowed."
@@ -727,21 +721,15 @@ services:
         max-file: "3"
 EOF
 
-# Add MTProto port to UFW (idempotent, no active-check — rules are stored even when UFW is inactive)
+# Add MTProto port to UFW (idempotent: delete first, then add)
 if [ "$USE_SPLIT_NETWORK" == "true" ]; then
-    if ! ufw status | grep -qE "${INBOUND_IP}.*${HOST_PORT}/tcp"; then
-        ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
-        echo "Allowed MTProto port $HOST_PORT on $INBOUND_IP in UFW."
-    else
-        echo "UFW rule for MTProto port $HOST_PORT on $INBOUND_IP already exists, skipping."
-    fi
+    ufw delete allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp 2>/dev/null || true
+    ufw allow to "$INBOUND_IP" port "$HOST_PORT" proto tcp
+    echo "Allowed MTProto port $HOST_PORT on $INBOUND_IP in UFW."
 else
-    if ! ufw status | grep -qE "${HOST_PORT}/tcp"; then
-        ufw allow proto tcp port "$HOST_PORT"
-        echo "Allowed MTProto port $HOST_PORT in UFW."
-    else
-        echo "UFW rule for MTProto port $HOST_PORT already exists, skipping."
-    fi
+    ufw delete allow proto tcp port "$HOST_PORT" 2>/dev/null || true
+    ufw allow proto tcp port "$HOST_PORT"
+    echo "Allowed MTProto port $HOST_PORT in UFW."
 fi
 echo "$HOST_PORT" > "$INSTALL_DIR/ufw_port.txt"
 $DOCKER_COMPOSE_CMD up -d
