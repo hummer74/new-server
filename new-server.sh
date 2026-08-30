@@ -23,11 +23,6 @@ ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
 ROUTER_PORT=24930
 
-# Telemt MTProto Proxy
-PROXY_PORT=8443
-PROXY_DOMAIN="github.com"
-PROXY_USER="proxy_user"
-
 # ==============================================================================
 # === GLOBAL STATE VARIABLES ===
 # ==============================================================================
@@ -60,6 +55,7 @@ check_root() {
 detect_os() {
     if [ -f /etc/os-release ]; then
         source /etc/os-release
+        # On Debian testing/unstable, VERSION_ID might be empty. Default to 0.
         DEBIAN_VERSION_ID="${VERSION_ID:-0}"
         if [ -z "${VERSION_CODENAME:-}" ] && [ -n "${VERSION:-}" ]; then
             DEBIAN_CODENAME=$(echo "$VERSION" | sed -n 's/.*(\(.*\)).*/\1/p')
@@ -166,7 +162,9 @@ fix_apt_sources() {
         done
     fi
 
-    if [ "$DEBIAN_VERSION_ID" -le 10 ] 2>/dev/null; then
+    # Using regex to explicitly target older Debian versions (8, 9, 10)
+    # Deb 13 (testing) might have DEBIAN_VERSION_ID="0", so we avoid -le 10
+    if [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10)$ ]]; then
         cat > /etc/apt/sources.list <<EOF
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
@@ -179,7 +177,8 @@ deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main 
 EOF
     fi
 
-    if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
+    # Remove non-free-firmware only for Debian versions strictly older than 12
+    if [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10|11)$ ]]; then
         sed -i 's/ non-free-firmware//g' /etc/apt/sources.list
     fi
 
@@ -333,13 +332,14 @@ EOF
         ignore_ips="$INBOUND_IP $OUTBOUND_IP $ignore_ips"
     fi
 
+    # Fix logic for missing logpath in newer Debian
     local f2b_sshd_log=""
-    if [ "$DEBIAN_VERSION_ID" -lt 12 ] 2>/dev/null; then
+    if [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10|11)$ ]]; then
         f2b_sshd_log="logpath = %(sshd_log)s"
     fi
 
     local f2b_backend_line=""
-    if [ "$DEBIAN_VERSION_ID" -ge 12 ] 2>/dev/null; then
+    if ! [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10|11)$ ]]; then
         f2b_backend_line="backend = systemd"
     fi
 
@@ -443,12 +443,13 @@ ask_master_password_and_extract() {
     chmod 700 ~/.config/htop 2>/dev/null || true
     chmod 700 ~/.config/mc 2>/dev/null || true
     chmod 700 ~/.ssh
-    chmod 600 ~/.ssh/* 2>/dev/null
-    chmod 644 ~/.ssh/*.pub 2>/dev/null
-    chmod 600 ~/.ssh/authorized_keys 2>/dev/null
-    chmod 644 ~/.ssh/known_hosts 2>/dev/null
-    chmod 644 ~/.ssh/config 2>/dev/null
-    chmod +x ~/*.sh 2>/dev/null
+    # '|| true' appended to prevent script crash due to 'set -e' if mask matches nothing
+    chmod 600 ~/.ssh/* 2>/dev/null || true
+    chmod 644 ~/.ssh/*.pub 2>/dev/null || true
+    chmod 600 ~/.ssh/authorized_keys 2>/dev/null || true
+    chmod 644 ~/.ssh/known_hosts 2>/dev/null || true
+    chmod 644 ~/.ssh/config 2>/dev/null || true
+    chmod +x ~/*.sh 2>/dev/null || true
     echo ""
 }
 
@@ -636,139 +637,6 @@ EOF
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$REVERSE_LOG"
 }
 
-install_telemt_proxy() {
-    echo "# Installing telemt MTProto proxy (Docker Compose V2)..."
-    if ! command -v docker >/dev/null; then
-        apt-get update
-        apt-get install -y docker.io
-        systemctl enable --now docker
-    fi
-    if ! docker info >/dev/null 2>&1; then
-        systemctl start docker
-    fi
-
-    if ! docker compose version >/dev/null 2>&1; then
-        echo "Installing docker-compose-plugin..."
-        apt-get update
-        apt-get install -y docker-compose-plugin || {
-            echo "Fallback: Downloading Docker Compose V2 binary from GitHub..."
-            mkdir -p /usr/libexec/docker/cli-plugins
-            curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
-            chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-        }
-    fi
-    local DOCKER_COMPOSE_CMD="docker compose"
-
-    command -v apparmor_parser >/dev/null || { apt-get update && apt-get install -y apparmor; }
-    command -v openssl >/dev/null || { apt-get update && apt-get install -y openssl; }
-    command -v xxd >/dev/null || { apt-get update && apt-get install -y xxd; }
-    command -v ufw >/dev/null || { apt-get update && apt-get install -y ufw; }
-
-    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
-        EXTERNAL_IP="$INBOUND_IP"
-        echo "Split-network active: using Inbound IP ($EXTERNAL_IP) for proxy link."
-    else
-        EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s icanhazip.com)
-        if [ -z "$EXTERNAL_IP" ]; then
-            EXTERNAL_IP="127.0.0.1"
-        fi
-    fi
-
-    local INSTALL_DIR="/etc/telemt-docker"
-    local CONFIG_DIR="$INSTALL_DIR/config"
-    mkdir -p "$CONFIG_DIR"
-    cd "$INSTALL_DIR"
-
-    local SECRET=""
-    if [ -f "$CONFIG_DIR/telemt.toml" ]; then
-        SECRET=$(grep -oP "${PROXY_USER}\s*=\s*\"\K[a-f0-9]+" "$CONFIG_DIR/telemt.toml" 2>/dev/null | tail -1)
-    fi
-    if [ -z "$SECRET" ]; then
-        SECRET=$(openssl rand -hex 16)
-        echo "Generated new MTProto proxy secret."
-    fi
-
-    local TLS_DOMAIN_HEX=$(printf "%s" "$PROXY_DOMAIN" | xxd -p -c 1000 | tr -d '\\n')
-    local FULL_SECRET="ee${SECRET}${TLS_DOMAIN_HEX}"
-
-    cat > "$CONFIG_DIR/telemt.toml" <<EOF
-[general]
-use_middle_proxy = false
-[general.modes]
-classic = false
-secure = false
-tls = true
-[server]
-port = $PROXY_PORT
-[server.api]
-enabled = true
-listen = "127.0.0.1:9091"
-[censorship]
-tls_domain = "$PROXY_DOMAIN"
-[access.users]
-$PROXY_USER = "$SECRET"
-EOF
-    chmod -R 777 "$CONFIG_DIR"
-
-    local TELEMT_PORT_BIND="$PROXY_PORT"
-    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
-        TELEMT_PORT_BIND="$INBOUND_IP:$PROXY_PORT"
-    fi
-
-    cat > docker-compose.yml <<EOF
-version: '3.3'
-services:
-  telemt:
-    image: whn0thacked/telemt-docker:latest
-    container_name: telemt
-    restart: unless-stopped
-    ports:
-      - "$TELEMT_PORT_BIND:$PROXY_PORT"
-    environment:
-      RUST_LOG: info
-    volumes:
-      - "$CONFIG_DIR:/etc/telemt"
-    command: ["/etc/telemt/telemt.toml"]
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
-    tmpfs:
-      - /tmp:rw,nosuid,nodev,noexec,size=16m
-    ulimits:
-      nofile: 65536
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-EOF
-
-    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
-        ufw delete allow to "$INBOUND_IP" port "$PROXY_PORT" proto tcp 2>/dev/null || true
-        ufw allow to "$INBOUND_IP" port "$PROXY_PORT" proto tcp
-    else
-        ufw delete allow "$PROXY_PORT/tcp" 2>/dev/null || true
-        ufw allow "$PROXY_PORT/tcp"
-    fi
-    echo "$PROXY_PORT" > "$INSTALL_DIR/ufw_port.txt"
-    
-    $DOCKER_COMPOSE_CMD up -d
-    sleep 5
-    if docker ps --format '{{.Names}}' | grep -q "^telemt$"; then
-        echo "Telemt container is running."
-    else
-        echo "ERROR: Telemt container failed to start."
-    fi
-    
-    local LINK="tg://proxy?server=${EXTERNAL_IP}&port=${PROXY_PORT}&secret=${FULL_SECRET}"
-    echo "$LINK" > /root/tg-proxy_secret.txt
-    echo "Telemt proxy installed. Link saved to /root/tg-proxy_secret.txt"
-}
-
 configure_cron() {
     local CRON_TMP=$(mktemp)
     crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
@@ -781,9 +649,8 @@ configure_cron() {
 
     add_cron_job "@reboot         date >> /root/reboot.log"
     add_cron_job "0 0 1 * *       date > /root/reboot.log"
-    add_cron_job "1 */2 * * *     /root/telemt-update.sh"
-    add_cron_job "5 */3 * * *     /root/auto-update.sh"
-    add_cron_job "*/5 * * * *     systemctl reset-failed"
+    add_cron_job "5 */3 * * *      /root/auto-update.sh"
+    add_cron_job "*/5 * * * *      systemctl reset-failed"
 
     crontab "$CRON_TMP"
     rm -f "$CRON_TMP"
@@ -863,6 +730,5 @@ setup_users
 cleanup_markers
 configure_ufw
 setup_reverse_tunnel
-install_telemt_proxy
 configure_cron
 finalize_and_reboot
