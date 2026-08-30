@@ -298,7 +298,7 @@ EOF
 
 install_packages() {
     echo "# Install standard tools and security packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd
+    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx nftables iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd
 }
 
 configure_locales() {
