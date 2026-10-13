@@ -108,7 +108,8 @@ echo "Creating/Updating systemd unit file..."
 bash -c "cat <<EOF > $SERVICE_TEMPLATE
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=root
@@ -128,17 +129,29 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     $ROUTER_USER@$ROUTER_HOST
 
 Restart=always
-RestartSec=30
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 EOF"
 
-# 6. Launch and activation
+# Guard against the 127:0:0:1 corruption (dots must stay dots)
+if ! grep -q '127\.0\.0\.1' "$SERVICE_TEMPLATE"; then
+    echo "ERROR: generated $SERVICE_TEMPLATE has no 127.0.0.1 — refusing to enable."
+    exit 1
+fi
+
+# 6. Launch and activation (restart picks up template changes on re-runs)
 echo "Reloading systemd and starting service..."
 systemctl daemon-reload
 systemctl enable "$SERVICE_INSTANCE"
-systemctl start "$SERVICE_INSTANCE"
+systemctl restart "$SERVICE_INSTANCE"
+sleep 2
+if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
+    echo "Service $SERVICE_INSTANCE is active."
+else
+    echo "ERROR: $SERVICE_INSTANCE failed to start. Check: journalctl -u $SERVICE_INSTANCE --no-pager -n 20"
+fi
 
 # 7. Output and logging
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')

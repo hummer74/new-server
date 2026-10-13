@@ -10,7 +10,6 @@ fi
 lines=(
     "@reboot            date >> /root/reboot.log"
     "0 0 1 * *          date > /root/reboot.log"
-    "1 */2 * * *        /root/telemt-update.sh"
     "5 */3 * * *        /root/auto-update.sh"
     "*/5 * * * *        systemctl reset-failed"
 )

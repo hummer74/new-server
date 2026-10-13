@@ -66,8 +66,10 @@ if [ -n "$OUTBOUND_IP" ]; then
     if sudo iptables -t nat -L ts-postrouting &>/dev/null; then
         # Удаляем старое правило MASQUERADE с маркером, если есть
         sudo iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null || true
-        # Добавляем SNAT на нужный IP
-        sudo iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source "$OUTBOUND_IP"
+        # Добавляем SNAT на нужный IP (идемпотентно: без дублей при повторе)
+        if ! sudo iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source "$OUTBOUND_IP" 2>/dev/null; then
+            sudo iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source "$OUTBOUND_IP"
+        fi
         echo "   Правило добавлено немедленно."
     else
         echo "   Цепочка ts-postrouting пока недоступна, правило будет применено при старте."
@@ -83,7 +85,7 @@ Requires=tailscaled.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP'
+ExecStart=/bin/bash -c 'iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP'
 
 [Install]
 WantedBy=multi-user.target

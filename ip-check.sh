@@ -51,7 +51,8 @@ check_ipv6_globally_disabled() {
         reasons+=("modprobe: blacklist ipv6 found in /etc/modprobe.d/")
     fi
 
-    echo "$disabled"
+    # Печатаем ТОЛЬКО причины (пусто = IPv6 включён).
+    # Вызывающие проверяют [ -z ... ] / [ -n ... ], поэтому лишний echo ломал логику.
     if [ $disabled -eq 1 ]; then
         for r in "${reasons[@]}"; do
             echo "  - $r"
@@ -122,9 +123,9 @@ else
 fi
 log ""
 
-# Слушающие порты (22, 24940, 8443)
+# Слушающие порты (22, 24940)
 log "--- Listening services on IPv4 (common ports) ---"
-ss -4tuln | grep -E ":(22|24940|8443) " | tee -a /dev/null || log "No IPv4 listeners on common ports"
+ss -4tuln | grep -E ":(22|24940) " | tee -a /dev/null || log "No IPv4 listeners on common ports"
 log ""
 
 # Параметры sysctl IPv4
@@ -192,7 +193,7 @@ if [ -z "$DISABLED_REASONS" ]; then
 
     # Слушающие порты IPv6
     log "--- Listening services on IPv6 (common ports) ---"
-    ss -6tuln | grep -E ":(22|24940|8443) " | tee -a /dev/null || log "No IPv6 listeners on common ports"
+    ss -6tuln | grep -E ":(22|24940) " | tee -a /dev/null || log "No IPv6 listeners on common ports"
     log ""
 
     # Параметры sysctl IPv6 на основном интерфейсе

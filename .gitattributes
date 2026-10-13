@@ -1,0 +1,9 @@
+# Enforce LF in repo (scripts break on CRLF when fetched via curl|bash)
+* text=auto
+*.sh text eol=lf
+*.env text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+# Binary / private blobs stay untouched
+*.7z binary
+*.log binary

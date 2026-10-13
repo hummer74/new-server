@@ -1,99 +1,32 @@
-# Автоматическая установка и удаление MTProto (Telegram Proxy)
+# new-server — bootstrap Debian-сервера
 
-## 📖 Описание
+Оркестратор: `new-server.sh` (+ `config.env` рядом). Только Debian 11+.
+Запуск: `bash startinstall.sh` (тянет `new-server.sh` с GitHub) или локально `./new-server.sh`.
 
-Этот репозиторий содержит скрипты для автоматической установки и удаления MTProto (Telegram Proxy)
-Тестировалось на серверах Debian 11/12 (!). 
-Скрипты автоматически настраивают все необходимые компоненты без необходимости ручной конфигурации.
+Что делает: APT → full-upgrade → swap 512 → hostname → сеть (IPv6 всегда включён,
+echo-проbing выключен) → SSH `22,24940` (ключи+пароль) → пакеты → локаль `ru_RU` →
+fail2ban `30d/1440m/4` → unattended-upgrades (reboot в `00:01`) → пользователь `opossum` →
+UFW (`deny incoming`, `limit` на SSH, IPv6 on) → reverse-туннель на OpenWrt → cron → reboot.
 
-## ⚡ Быстрая установка
+Split-сеть (`INBOUND/OUTBOUND`, без хардкода адресов): авто-детект → `/root/.network_config`.
 
-**Просто скопируйте одну из строк ниже и вставьте её в терминал на вашем сервере:**
+## Проверка перед боевым прогоном
 
-### Для установки MTProto (Telegram Proxy):
+Не выполнено: bash -n/shellcheck — на этой Windows-машине нет bash/WSL.
+Перед боевым прогоном выполни на любом Debian:
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-install.sh)"
+bash -n new-server.sh && bash -n config.env
+shellcheck -S warning new-server.sh
 ```
 
-### Для удаления MTProto и отката сервера к исходному состоянию:
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-uninstall.sh)"
-```
+## Остальные скрипты
 
-### Для обновления установленнго MTProto (Telegram Proxy):
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/telemt-update.sh)"
-```
-
-## ⚠️ ВАЖНО!!! ОПАСНО!!! НУЖНО НЕ ВСЕМ!!!
-## Ниже - скрипты для тех, кто уже понимает что делает: 
-
-### ⚠️ Для быстрой настройки НОВОГО(!) Debian 11/12 сервера (общедоступно):
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/new-other.sh)"
-```
-
-### ⚠️ Оnly for hummer74 (поверьте, не надо вам этого):
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/startinstall.sh)"
-```
-
-**HEAD-TAIL tunnel:**
-
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-head.sh)"
-```
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/head-tail/zai-tunnel-tail.sh)"
-```
-
-**TAILSCALE:**
-
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh)"
-```
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-exit-node.sh)"
-```
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-uninsall.sh)"
-```
-
-
-## 🚀 Как это работает
-
-1. **Скопируйте** одну из команд выше
-2. **Вставьте** в терминал сервера (SSH)
-3. **Нажмите Enter** — скрипт всё сделает сам!
-
-Скрипт автоматически:
-- Скачивает необходимые зависимости
-- Настраивает конфигурационные файлы
-- Запускает сервисы
-- Задаёт вопросы о следующем шаге, при необходимости
-
-## ⚙️ Требования
-
-- SSH доступ к серверу
-- Root права или sudo доступ
-- Подключение к интернету (для скачивания зависимостей)
-
-## ⚠️ Важные примечания
-
-- **Бэкап**: Перед установкой рекомендуется сделать резервную копию важных данных
-- **Root права**: Операции требуют root прав — используйте `sudo` или подключайтесь как root
-- **Интернет**: Скрипт требует подключение к интернету для скачивания зависимостей
-- **Поддержка**: При возникновении проблем проверьте логи в `/var/log/`
-
-## 📞 Поддержка
-
-При возникновении проблем:
-1. Проверьте логи установки
-2. Убедитесь, что у вас есть root права
-3. Проверьте подключение к интернету
-4. Если с вашей точки зрения "у вас всё нормально" и косяк в скриптах - идите нахрен. 
-5. Правьте скрипты сами, это доступно.
----
-
-**Автор**: hummer74  
-**Лицензия**: MIT
+- `head-tail/zai-tunnel-*.sh` — WireGuard HEAD↔TAIL.
+- `tailscale-insall.sh`, `tailscale-exit-node.sh`, `tailscale-uninsall.sh` — Tailscale.
+- `snikket-*.sh` — XMPP Snikket в Docker.
+- `ssh2router.sh` — автономный reverse-туннель (дубль функции из `new-server.sh`).
+- `ip-check.sh`, `ipregion.sh` — диагностика сети/гео IP.
+- `add-crontab.sh`, `auto-update.sh`, `f2b-install.sh`, `create-swap512.sh`,
+  `right.sh`, `set_locale.sh` — точечные утилиты.
+- `domain.txt` — домены для TLS-маскировки.
+- `setup.7z` — приватный архив (`~/.ssh`, пароли). Не коммитить изменения без нужды.

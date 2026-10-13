@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # ==============================================================================
-# === CONFIGURATION (Magic Constants) ===
+# === CONFIGURATION (defaults, override via ./config.env next to script) ===
+# === Split-IP (INBOUND/OUTBOUND) — только авто-детект, хардкода адресов нет ===
 # ==============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Logging
 LOG_FILE="/root/new-server.log"
@@ -14,6 +16,9 @@ SSH_PORTS=(22 24940)
 
 # Security & Fail2ban
 F2B_IGNORE_IPS="176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.151.139.193 45.38.143.206 217.60.252.204 176.125.243.194 194.58.68.23"
+F2B_BANTIME="30d"
+F2B_FINDTIME="1440m"
+F2B_MAXRETRY=4
 
 # Setup Archive
 SETUP_ARCHIVE_URL="https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z"
@@ -23,6 +28,17 @@ ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
 ROUTER_PORT=24930
 
+# Locale
+SYSTEM_LANG="ru_RU.UTF-8"
+
+# Override defaults from config.env if present (script dir or /root/)
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/config.env"
+elif [ -f /root/config.env ]; then
+    # shellcheck disable=SC1091
+    source /root/config.env
+fi
 # ==============================================================================
 # === GLOBAL STATE VARIABLES ===
 # ==============================================================================
@@ -33,7 +49,6 @@ OUTBOUND_IP=""
 USE_SPLIT_NETWORK="false"
 NEW_HOSTNAME=""
 MASTER_PASSWORD=""
-EXTERNAL_IP=""
 
 # ==============================================================================
 # === FUNCTIONS ===
@@ -69,6 +84,14 @@ detect_os() {
 
     if [ "$DEBIAN_CODENAME" = "unknown" ]; then
         echo "Error: Failed to determine Debian codename."
+        exit 1
+    fi
+    if [ "${ID:-}" != "debian" ]; then
+        echo "Error: only Debian is supported (detected ID=${ID:-unknown})."
+        exit 1
+    fi
+    if [ "$DEBIAN_VERSION_ID" -lt 11 ] 2>/dev/null; then
+        echo "Error: Debian 11+ required (detected $DEBIAN_VERSION_ID)."
         exit 1
     fi
     echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
@@ -162,20 +185,11 @@ fix_apt_sources() {
         done
     fi
 
-    # Using regex to explicitly target older Debian versions (8, 9, 10)
-    # Deb 13 (testing) might have DEBIAN_VERSION_ID="0", so we avoid -le 10
-    if [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10)$ ]]; then
-        cat > /etc/apt/sources.list <<EOF
-deb http://archive.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
-deb http://archive.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
-EOF
-    else
-        cat > /etc/apt/sources.list <<EOF
+    cat > /etc/apt/sources.list <<EOF
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security ${DEBIAN_CODENAME}-security main contrib non-free non-free-firmware
 EOF
-    fi
 
     # Remove non-free-firmware only for Debian versions strictly older than 12
     if [[ "$DEBIAN_VERSION_ID" =~ ^(8|9|10|11)$ ]]; then
@@ -245,18 +259,13 @@ ask_hostname() {
 }
 
 harden_network() {
-    echo "Hard-disabling IPv6 and blocking ICMP..."
+    echo "IPv6 stays ENABLED. Blocking echo/probing, enabling forwarding..."
     cat > /etc/sysctl.d/99-hardened.conf <<EOF
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
 net.ipv4.icmp_echo_ignore_all = 1
+net.ipv6.icmp.echo_ignore_all = 1
 EOF
-
-    if ! grep -q "ipv6.disable=1" /etc/default/grub; then
-        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="ipv6.disable=1 /' /etc/default/grub
-        update-grub || true
-    fi
     sysctl --system
 
     if systemctl is-active --quiet exim4 2>/dev/null || systemctl is-failed --quiet exim4 2>/dev/null; then
@@ -278,7 +287,8 @@ configure_ssh() {
     cat >> /etc/ssh/sshd_config.d/99-custom.conf <<EOF
 $([ "$USE_SPLIT_NETWORK" == "true" ] && echo "ListenAddress 127.0.0.1" || true)
 $([ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ] && echo "ListenAddress $INBOUND_IP" || true)
-PermitRootLogin without-password
+PermitRootLogin yes
+PasswordAuthentication yes
 PubkeyAuthentication yes
 EOF
 
@@ -297,7 +307,7 @@ EOF
 
 install_packages() {
     echo "# Install standard tools and security packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx nftables iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd
+    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd git nftables iptables-persistent wireguard-tools jq needrestart
 }
 
 configure_locales() {
@@ -309,12 +319,12 @@ configure_locales() {
         locale-gen ru_RU.UTF-8
     fi
     cat > /etc/default/locale <<EOF
-LANG=ru_RU.UTF-8
+LANG=$SYSTEM_LANG
 EOF
     if ! grep -q "^LANG=" /etc/environment 2>/dev/null; then
-        echo "LANG=ru_RU.UTF-8" >> /etc/environment
+        echo "LANG=$SYSTEM_LANG" >> /etc/environment
     fi
-    export LANG=ru_RU.UTF-8
+    export LANG="$SYSTEM_LANG"
     unset LC_ALL LC_CTYPE LC_MESSAGES 2>/dev/null || true
     echo ""
 }
@@ -347,9 +357,9 @@ EOF
 
     cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
-bantime = 7d
-findtime = 180m
-maxretry = 4
+bantime = $F2B_BANTIME
+findtime = $F2B_FINDTIME
+maxretry = $F2B_MAXRETRY
 ignoreip = $ignore_ips
 $f2b_backend_line
 
@@ -394,7 +404,7 @@ Unattended-Upgrade::Mail "root";
 Unattended-Upgrade::MailOnlyOnError "true";
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-Time "00:01";
 EOF
     systemctl enable unattended-upgrades
@@ -403,14 +413,11 @@ EOF
 }
 
 configure_profile() {
-    if ! grep -q "screen -ls | grep -q" ~/.profile; then
+    if ! grep -q 'mc-interactive-guard' ~/.profile; then
         cat >> ~/.profile << 'EOF'
 
-if screen -ls | grep -q "Detached"; then
-    screen -r 2>/dev/null
-fi
-sleep 2
-sudo mc 2>/dev/null
+# mc-interactive-guard: only for interactive shells (keeps scp/sftp working)
+[[ $- == *i* ]] && { sudo mc 2>/dev/null; }
 EOF
     fi
 }
@@ -510,7 +517,12 @@ cleanup_markers() {
 }
 
 configure_ufw() {
-    echo "Configuring UFW firewall..."
+    echo "Configuring UFW firewall (IPv4+IPv6)..."
+    if [ -f /etc/default/ufw ] && ! grep -q "^IPV6=yes" /etc/default/ufw; then
+        sed -i 's/^IPV6=.*/IPV6=yes/' /etc/default/ufw
+    fi
+    ufw default deny incoming || true
+    ufw default allow outgoing || true
     for port in "${SSH_PORTS[@]}"; do
         if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
             ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
@@ -521,8 +533,13 @@ configure_ufw() {
             ufw allow "$port/tcp"
             echo "Allowed SSH port $port in UFW."
         fi
+        ufw limit "$port/tcp" 2>/dev/null || true
     done
-    echo "SSH ports are allowed."
+    if [ -f /etc/wireguard/wg0.conf ]; then
+        ufw allow 51820/udp 2>/dev/null || true
+        echo "Allowed WireGuard 51820/udp (wg0.conf exists)."
+    fi
+    echo "SSH ports are allowed (deny incoming, limit enabled, IPv6 on)."
     echo ""
 }
 
@@ -534,12 +551,21 @@ setup_reverse_tunnel() {
     local REVERSE_LOG="/root/reverse_ssh.log"
 
     if [ ! -f "$KEY_PATH" ]; then
-        echo "Warning: $KEY_PATH not found. Reverse tunnel setup skipped." | tee -a "$REVERSE_LOG"
-        return
+        echo "ERROR: $KEY_PATH not found (it arrives inside setup.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
+        echo "Reverse tunnel cannot be set up without this private key."
+        while true; do
+            read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice
+            case "$key_choice" in
+                [Qq]*) echo "Aborted by user (missing ssh2router key)."; exit 1 ;;
+                [Cc]*) echo "Continuing without reverse tunnel." | tee -a "$REVERSE_LOG"; return 0 ;;
+                *) echo "Enter q or c." ;;
+            esac
+        done
     fi
 
     chmod 600 "$KEY_PATH"
-    local LOCAL_SSH_PORT=$(ss -tlnp | grep 'sshd' | awk '{print $4}' | awk -F':' '{print $NF}' | sort -rn | head -n 1)
+    # Deterministic: senior SSH port from config, not from ss parsing
+    local LOCAL_SSH_PORT="${SSH_PORTS[${#SSH_PORTS[@]}-1]}"
     if [ -z "$LOCAL_SSH_PORT" ]; then
         LOCAL_SSH_PORT=22
     fi
@@ -591,15 +617,23 @@ setup_reverse_tunnel() {
         esac
     fi
     
-    local BIND_ADDR_OPTION=""
-    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$OUTBOUND_IP" ]; then
-        BIND_ADDR_OPTION="-o \"BindAddress=$OUTBOUND_IP\""
+    # Bind outbound socket to OUTBOUND_IP only if that IP really exists locally.
+    # No hardcoded addresses: values come only from auto-detected $OUTBOUND_IP.
+    # BIND_OPT expands inline (no extra continuation line -> no broken ExecStart).
+    local BIND_OPT=""
+    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "${OUTBOUND_IP:-}" ]; then
+        if ip -4 addr show | grep -qw "$OUTBOUND_IP"; then
+            BIND_OPT="-o BindAddress=$OUTBOUND_IP"
+        else
+            echo "WARNING: OUTBOUND_IP=$OUTBOUND_IP not found locally, connecting via default route." | tee -a "$REVERSE_LOG"
+        fi
     fi
 
     cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=root
@@ -608,8 +642,7 @@ Environment="AUTOSSH_GATETIME=0"
 
 ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "StrictHostKeyChecking=no" \\
-    -o "UserKnownHostsFile=/dev/null" \\
-    $BIND_ADDR_OPTION \\
+    -o "UserKnownHostsFile=/dev/null" $BIND_OPT \\
     -o "ServerAliveInterval=60" \\
     -o "ServerAliveCountMax=3" \\
     -o "ExitOnForwardFailure=yes" \\
@@ -620,19 +653,29 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     $ROUTER_USER@$ROUTER_HOST
 
 Restart=always
-RestartSec=30
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 EOF
+    # Guard against the 127:0:0:1 corruption (dots must stay dots)
+    if ! grep -q '127\.0\.0\.1' "$SERVICE_TEMPLATE"; then
+        echo "ERROR: generated $SERVICE_TEMPLATE has no 127.0.0.1 — refusing to enable." | tee -a "$REVERSE_LOG"
+        echo "Check BIND_OPT/quoting, template left on disk for inspection."
+        return 1
+    fi
+    if command -v systemd-analyze >/dev/null 2>&1; then
+        systemd-analyze verify "$SERVICE_TEMPLATE" 2>&1 | tee -a "$REVERSE_LOG" || true
+    fi
     systemctl daemon-reload
     systemctl enable "$SERVICE_INSTANCE"
     systemctl restart "$SERVICE_INSTANCE"
-    sleep 2
+    sleep 3
     if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
         echo "Tunnel service $SERVICE_INSTANCE is active." | tee -a "$REVERSE_LOG"
     else
         echo "ERROR: Tunnel service $SERVICE_INSTANCE failed to start." | tee -a "$REVERSE_LOG"
+        journalctl -u "$SERVICE_INSTANCE" --no-pager -n 15 | tee -a "$REVERSE_LOG" || true
     fi
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$REVERSE_LOG"
 }

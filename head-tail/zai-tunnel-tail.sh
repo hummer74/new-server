@@ -45,7 +45,7 @@ fi
 
 echo "[2/8] Enabling IPv4 forwarding..."
 if [ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]; then
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/99-tunnel.conf
+    grep -q "^net.ipv4.ip_forward" /etc/sysctl.d/99-tunnel.conf 2>/dev/null || echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/99-tunnel.conf
     sysctl -p /etc/sysctl.d/99-tunnel.conf >/dev/null
     log "[INFO] net.ipv4.ip_forward = 1"
 else
