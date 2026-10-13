@@ -102,7 +102,12 @@ detect_os() {
 
 configure_network_ips() {
     echo "--- Network Analysis ---"
-    IPV4_LIST=($(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1))
+    # All global IPv4 addresses on all interfaces (route-based src yields only
+    # ONE address, so it must not be the primary source for split detection).
+    IPV4_LIST=($(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | sort -u))
+    if [ "${#IPV4_LIST[@]}" -eq 0 ]; then
+        IPV4_LIST=($(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1))
+    fi
     NUM_IPS=${#IPV4_LIST[@]}
 
     if [ "$NUM_IPS" -gt 1 ]; then
@@ -530,13 +535,15 @@ configure_ufw() {
         if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
             ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
             ufw allow to "$INBOUND_IP" port "$port" proto tcp
-            echo "Allowed SSH port $port on $INBOUND_IP in UFW."
+            ufw delete limit to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
+            ufw limit to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
+            echo "Allowed+limited SSH port $port on $INBOUND_IP in UFW."
         else
             ufw delete allow "$port/tcp" 2>/dev/null || true
             ufw allow "$port/tcp"
             echo "Allowed SSH port $port in UFW."
+            ufw limit "$port/tcp" 2>/dev/null || true
         fi
-        ufw limit "$port/tcp" 2>/dev/null || true
     done
     if [ -f /etc/wireguard/wg0.conf ]; then
         ufw allow 51820/udp 2>/dev/null || true
