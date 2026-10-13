@@ -70,6 +70,37 @@ check_root() {
     fi
 }
 
+# Robust Debian major release: VERSION_ID -> /etc/debian_version ->
+# lsb_release -> APT deb822 feature probe. Prints 0 when undetected
+# (Debian testing/unstable have empty VERSION_ID).
+debian_major() {
+    local v="${VERSION_ID:-}"
+    if [[ "$v" =~ ^([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    if [ -f /etc/debian_version ]; then
+        v=$(cut -d. -f1 /etc/debian_version 2>/dev/null || true)
+        if [[ "$v" =~ ^[0-9]+$ ]]; then
+            echo "$v"
+            return 0
+        fi
+    fi
+    if command -v lsb_release >/dev/null 2>&1; then
+        v=$(lsb_release -rs 2>/dev/null | cut -d. -f1 || true)
+        if [[ "$v" =~ ^[0-9]+$ ]]; then
+            echo "$v"
+            return 0
+        fi
+    fi
+    if apt-get --help 2>/dev/null | grep -q "deb822"; then
+        echo "12"
+        return 0
+    fi
+    echo "0"
+    return 0
+}
+
 detect_os() {
     if [ -f /etc/os-release ]; then
         source /etc/os-release
@@ -93,10 +124,17 @@ detect_os() {
         echo "Error: only Debian is supported (detected ID=${ID:-unknown})."
         exit 1
     fi
-    if [ "$DEBIAN_VERSION_ID" -lt 11 ] 2>/dev/null; then
-        echo "Error: Debian 11+ required (detected $DEBIAN_VERSION_ID)."
-        exit 1
-    fi
+    local DEB_MAJOR
+    DEB_MAJOR=$(debian_major)
+    case "$DEB_MAJOR" in
+        6|7|8|9|10)
+            echo "Error: Debian 11+ required (detected $DEB_MAJOR; 6-10 are cut off)."
+            exit 1
+            ;;
+        0)
+            echo "WARNING: Debian release undetected (testing/unstable?). Continuing as modern Debian."
+            ;;
+    esac
     echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
 }
 
@@ -268,6 +306,18 @@ ask_hostname() {
 
 harden_network() {
     echo "IPv6 stays ENABLED. Blocking echo/probing, enabling forwarding..."
+    # One-time cleanup of legacy hardening from older runs (IPv6 used to be
+    # disabled via GRUB/modprobe; without cleanup the report below would lie).
+    if [ -f /etc/default/grub ] && grep -q "ipv6.disable=1" /etc/default/grub 2>/dev/null; then
+        echo "Removing legacy ipv6.disable=1 from GRUB..."
+        sed -i 's/ *ipv6.disable=1//g' /etc/default/grub
+        update-grub || true
+    fi
+    if [ -f /etc/modprobe.d/blacklist-ipv6.conf ] && grep -q "blacklist[[:space:]]\+ipv6" /etc/modprobe.d/blacklist-ipv6.conf 2>/dev/null; then
+        echo "Removing legacy IPv6 modprobe blacklist..."
+        rm -f /etc/modprobe.d/blacklist-ipv6.conf
+        update-initramfs -u || true
+    fi
     cat > /etc/sysctl.d/99-hardened.conf <<EOF
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
@@ -438,6 +488,8 @@ ask_master_password_and_extract() {
     fi
 
     MASTER_PASSWORD=""
+    # NOTE: 7za receives the password via -p, so it is briefly visible in the
+    # process list (ps) during extraction. Unavoidable with p7zip CLI.
     for attempt in {1..5}; do
         read -s -p "Enter master password for setup & user (attempt $attempt/5): " MASTER_PASSWORD
         echo
