@@ -28,6 +28,9 @@ ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
 ROUTER_PORT=24930
 
+# Tailscale (optional step: local file next to script wins, else URL)
+TAILSCALE_INSTALL_URL="https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh"
+
 # Locale
 SYSTEM_LANG="ru_RU.UTF-8"
 
@@ -680,6 +683,108 @@ EOF
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$REVERSE_LOG"
 }
 
+setup_tailscale_exit_node() {
+    echo "=============================================="
+    echo " Optional: Tailscale Exit Node "
+    echo "=============================================="
+    while true; do
+        read -p "Install and configure Tailscale as Exit Node? [y/N]: " ts_answer
+        case "$ts_answer" in
+            [Yy]*) break ;;
+            [Nn]*|"") echo "Skipping Tailscale setup."; return 0 ;;
+            *) echo "Enter y or N." ;;
+        esac
+    done
+
+    echo ">>> Installing Tailscale..."
+    if ! command -v tailscale >/dev/null 2>&1; then
+        if [ -f "$SCRIPT_DIR/tailscale-insall.sh" ]; then
+            bash "$SCRIPT_DIR/tailscale-insall.sh"
+        else
+            bash -c "$(curl -fsSL "$TAILSCALE_INSTALL_URL")"
+        fi
+        sleep 2
+    else
+        echo "Tailscale already installed."
+    fi
+
+    echo ">>> Ensuring IP forwarding (IPv6 stays enabled)..."
+    grep -q "^net.ipv4.ip_forward" /etc/sysctl.d/99-hardened.conf 2>/dev/null || echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/99-hardened.conf
+    grep -q "^net.ipv6.conf.all.forwarding" /etc/sysctl.d/99-hardened.conf 2>/dev/null || echo "net.ipv6.conf.all.forwarding = 1" >> /etc/sysctl.d/99-hardened.conf
+    sysctl --system >/dev/null 2>&1 || echo "   (Some sysctl keys not applied — ok if kernel lacks IPv6)"
+
+    echo ">>> Connecting to Tailscale and advertising Exit Node..."
+    echo "    (Approve login URL if shown, then approve Exit Node in Admin Console)"
+    if ! tailscale up --advertise-exit-node; then
+        echo "WARNING: 'tailscale up' failed (login not completed?). Continuing without Exit Node SNAT."
+        echo "Rerun later: tailscale up --advertise-exit-node (or standalone tailscale-exit-node.sh)."
+        return 0
+    fi
+    echo ">>> Waiting for network settings..."
+    sleep 3
+
+    # Outbound IP: split-network OUTBOUND_IP wins, no hardcoded addresses
+    local TS_OUTBOUND_IP=""
+    if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "${OUTBOUND_IP:-}" ]; then
+        TS_OUTBOUND_IP="$OUTBOUND_IP"
+        echo "Split-network active: using Outbound IP ($TS_OUTBOUND_IP) for Exit Node SNAT."
+    else
+        if command -v curl >/dev/null 2>&1; then
+            TS_OUTBOUND_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || true)
+        fi
+        if [ -z "${TS_OUTBOUND_IP:-}" ]; then
+            TS_OUTBOUND_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)
+        fi
+    fi
+
+    if [ -z "${TS_OUTBOUND_IP:-}" ]; then
+        echo "WARNING: Could not detect outbound IP. Skipping SNAT (default MASQUERADE stays)."
+    else
+        echo "   Outbound IP: $TS_OUTBOUND_IP"
+        echo ">>> Configuring SNAT for Exit Node traffic..."
+        if iptables -t nat -L ts-postrouting &>/dev/null; then
+            iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null || true
+            if ! iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source "$TS_OUTBOUND_IP" 2>/dev/null; then
+                iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source "$TS_OUTBOUND_IP"
+            fi
+            echo "   Rule applied."
+        else
+            echo "   Chain ts-postrouting not ready yet, rule will apply at boot."
+        fi
+
+        echo ">>> Creating fix-exit-node-ip.service..."
+        cat > /etc/systemd/system/fix-exit-node-ip.service <<EOF
+[Unit]
+Description=Fix Exit Node SNAT IP to $TS_OUTBOUND_IP
+After=tailscaled.service
+Requires=tailscaled.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl enable fix-exit-node-ip.service
+        echo "   Service fix-exit-node-ip.service enabled."
+    fi
+
+    systemctl enable tailscaled &>/dev/null || true
+
+    echo ""
+    echo "=== Tailscale Exit Node ready ==="
+    if [ -n "${TS_OUTBOUND_IP:-}" ]; then
+        echo "Exit Node traffic leaves via: $TS_OUTBOUND_IP"
+    else
+        echo "Exit Node traffic uses default IP (MASQUERADE)."
+    fi
+    echo "Tailscale IP:"
+    tailscale ip -4 2>/dev/null || echo "  (check with: tailscale ip -4)"
+    echo "Approve this machine as Exit Node: https://login.tailscale.com/admin/machines"
+}
+
 configure_cron() {
     local CRON_TMP=$(mktemp)
     crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
@@ -773,5 +878,6 @@ setup_users
 cleanup_markers
 configure_ufw
 setup_reverse_tunnel
+setup_tailscale_exit_node
 configure_cron
 finalize_and_reboot

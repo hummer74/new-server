@@ -6,7 +6,8 @@
 Что делает: APT → full-upgrade → swap 512 → hostname → сеть (IPv6 всегда включён,
 echo-проbing выключен) → SSH `22,24940` (ключи+пароль) → пакеты → локаль `ru_RU` →
 fail2ban `30d/1440m/4` → unattended-upgrades (reboot в `00:01`) → пользователь `opossum` →
-UFW (`deny incoming`, `limit` на SSH, IPv6 on) → reverse-туннель на OpenWrt → cron → reboot.
+UFW (`deny incoming`, `limit` на SSH, IPv6 on) → reverse-туннель на OpenWrt →
+опционально Tailscale Exit Node (вопрос `y/N`, SNAT на Outbound IP при split) → cron → reboot.
 
 Split-сеть (`INBOUND/OUTBOUND`, без хардкода адресов): авто-детект → `/root/.network_config`.
 
