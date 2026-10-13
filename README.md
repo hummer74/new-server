@@ -13,11 +13,11 @@ Split-сеть (`INBOUND/OUTBOUND`, без хардкода адресов): а�
 
 ## Проверка перед боевым прогоном
 
-Не выполнено: bash -n/shellcheck — на этой Windows-машине нет bash/WSL.
-Перед боевым прогоном выполни на любом Debian:
+Выполни на любом Debian до запуска:
 ```bash
-bash -n new-server.sh && bash -n config.env
-shellcheck -S warning new-server.sh
+bash -n new-server.sh && bash -n config.env && echo SYNTAX-OK
+shellcheck -S warning new-server.sh ssh2router.sh auto-update.sh 2>&1 | head -n 40
+ip -4 -o addr show scope global   # сверить: список должен показать оба IP для split
 ```
 
 ## Остальные скрипты
