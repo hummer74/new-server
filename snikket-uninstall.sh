@@ -136,14 +136,14 @@ echo "Внимание: это может затронуть другие кон
 read -p "Удалить Docker? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Останавливаем все контейнеры и удаляем пакеты Docker..."
-    # Останавливаем все запущенные контейнеры
-    docker stop $(docker ps -q) 2>/dev/null || true
-    # Удаляем все контейнеры, образы, тома (опционально)
-    read -p "Удалить все образы, контейнеры и тома Docker? (y/N) " -n 1 -r
+    echo "Останавливаем контейнеры Snikket и удаляем пакеты Docker..."
+    # Останавливаем только контейнеры проекта snikket (чужие не трогаем)
+    docker ps -q --filter "label=com.docker.compose.project=snikket" 2>/dev/null | xargs -r docker stop 2>/dev/null || true
+    # Удаляем образы/тома только с меткой snikket (опционально)
+    read -p "Удалить образы и тома Snikket (только с меткой snikket)? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        docker system prune -a --volumes -f
+        docker system prune -a --volumes -f --filter "label=com.docker.compose.project=snikket"
     fi
     # Удаляем пакеты
     apt remove -y docker-ce docker-ce-cli containerd.io docker-compose-plugin

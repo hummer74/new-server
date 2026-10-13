@@ -38,11 +38,22 @@ apt autoremove -y
 apt autoclean -y
 apt autoremove --purge -y
 
-# 5. Check upgrade result
+# 5. Check upgrade result (reboot only in night window 00:00-01:00
+# and only with no active sessions, to avoid doubling unattended 00:01 reboot)
 if [ $upgrade_status -eq 0 ]; then
-    echo "Update completed successfully. Rebooting in 15 seconds (Ctrl+C to cancel)..."
-    sleep 15
-    reboot now
+    HOUR=$(date +%H)
+    if [ "$HOUR" -ge 0 ] && [ "$HOUR" -lt 1 ]; then
+        if who 2>/dev/null | grep -q . || ss -tn state established 2>/dev/null | grep -qE ':(22|24940) '; then
+            echo "Update completed successfully. Active sessions detected, reboot skipped (reboot manually)."
+            exit 0
+        fi
+        echo "Update completed successfully. Rebooting in 15 seconds (Ctrl+C to cancel)..."
+        sleep 15
+        reboot now
+    else
+        echo "Update completed successfully. Outside reboot window (00:00-01:00), reboot skipped."
+        exit 0
+    fi
 else
     echo "Update failed. Reboot aborted." > ~/auto-update.log
     exit 2

@@ -137,17 +137,18 @@ for entry in $SUBNETS; do
     COUNT=$((COUNT + 1))
 
     # CRITICAL: Exclude DNAT connections (VPN-protocol client<->container)
-    iptables -t mangle -A PREROUTING -s "$entry" -m conntrack --ctstate DNAT -j RETURN
+    # All rules tagged with comment zai-head so wg-down removes only its own
+    iptables -t mangle -A PREROUTING -s "$entry" -m conntrack --ctstate DNAT -m comment --comment zai-head -j RETURN
 
     # Exclude private/local destinations
-    iptables -t mangle -A PREROUTING -s "$entry" -d 127.0.0.0/8       -j RETURN
-    iptables -t mangle -A PREROUTING -s "$entry" -d 169.254.0.0/16    -j RETURN
-    iptables -t mangle -A PREROUTING -s "$entry" -d 10.0.0.0/8        -j RETURN
-    iptables -t mangle -A PREROUTING -s "$entry" -d 172.16.0.0/12     -j RETURN
-    iptables -t mangle -A PREROUTING -s "$entry" -d 192.168.0.0/16    -j RETURN
+    iptables -t mangle -A PREROUTING -s "$entry" -d 127.0.0.0/8       -m comment --comment zai-head -j RETURN
+    iptables -t mangle -A PREROUTING -s "$entry" -d 169.254.0.0/16    -m comment --comment zai-head -j RETURN
+    iptables -t mangle -A PREROUTING -s "$entry" -d 10.0.0.0/8        -m comment --comment zai-head -j RETURN
+    iptables -t mangle -A PREROUTING -s "$entry" -d 172.16.0.0/12     -m comment --comment zai-head -j RETURN
+    iptables -t mangle -A PREROUTING -s "$entry" -d 192.168.0.0/16    -m comment --comment zai-head -j RETURN
 
     # Mark remaining traffic (Internet-bound)
-    iptables -t mangle -A PREROUTING -s "$entry" -j MARK --set-mark $MARK
+    iptables -t mangle -A PREROUTING -s "$entry" -m comment --comment zai-head -j MARK --set-mark $MARK
 
     # Masquerade BEFORE Docker's rules (insert at position 1)
     iptables -t nat -I POSTROUTING 1 -s "$entry" -o wg0 -j MASQUERADE
@@ -183,9 +184,13 @@ MARK="0x3"
 
 echo "[wg-down] $(date '+%H:%M:%S') Cleaning up routing hooks..."
 
-# --- 1. Flush mangle PREROUTING ---
-iptables -t mangle -F PREROUTING 2>/dev/null || true
-echo "[wg-down] Mangle PREROUTING flushed"
+# --- 1. Remove ONLY our mangle PREROUTING rules (tagged zai-head in wg-up) ---
+while iptables -t mangle -S PREROUTING 2>/dev/null | grep -q 'zai-head'; do
+    RULE=$(iptables -t mangle -S PREROUTING 2>/dev/null | grep -m1 'zai-head' | sed 's/^-A /-D /')
+    [ -n "$RULE" ] || break
+    iptables -t mangle $RULE 2>/dev/null || break
+done
+echo "[wg-down] Own mangle PREROUTING rules removed (foreign rules kept)"
 
 # --- 2. Remove MASQUERADE rules for wg0 ---
 while iptables -t nat -L POSTROUTING | grep -q "wg0"; do

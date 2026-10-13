@@ -353,6 +353,11 @@ EOF
     if ! grep -q "^Include /etc/ssh/sshd_config.d/\*.conf" /etc/ssh/sshd_config; then
         sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
     fi
+    # Drop stock Port lines so only 99-custom.conf defines ports (idempotent)
+    if grep -q "^Port " /etc/ssh/sshd_config; then
+        cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak.$(date +%Y%m%d%H%M%S)
+        sed -i '/^Port /d' /etc/ssh/sshd_config
+    fi
 
     if sshd -t; then
         systemctl reload ssh
