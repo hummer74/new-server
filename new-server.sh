@@ -370,7 +370,7 @@ EOF
 
 install_packages() {
     echo "# Install standard tools and security packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd git nftables iptables-persistent wireguard-tools jq needrestart
+    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd git nftables wireguard-tools jq needrestart
 }
 
 configure_locales() {

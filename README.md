@@ -3,6 +3,11 @@
 Оркестратор: `new-server.sh` (+ `config.env` рядом). Только Debian 11+.
 Запуск: `bash startinstall.sh` (тянет `new-server.sh` с GitHub) или локально `./new-server.sh`.
 
+Одной командой на чистом сервере (скопировать в SSH):
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/hummer74/new-server/main/startinstall.sh)"
+```
+
 Что делает: APT → full-upgrade → swap 512 → hostname → сеть (IPv6 всегда включён,
 echo-проbing выключен) → SSH `22,24940` (ключи+пароль) → пакеты → локаль `ru_RU` →
 fail2ban `30d/1440m/4` → unattended-upgrades (reboot в `00:01`) → пользователь `opossum` →
