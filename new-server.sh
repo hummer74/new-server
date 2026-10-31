@@ -61,6 +61,7 @@ init_logging() {
     exec 3>&1 4>&2
     exec > >(tee -a "$LOG_FILE") 2>&1
     echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
+    echo "=== new-server run started at $(date '+%Y-%m-%d %H:%M:%S') (goes to log; re-runs append below) ==="
 }
 
 check_root() {
@@ -155,7 +156,7 @@ configure_network_ips() {
         done
         
         while true; do
-            read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split
+            read -p "Do you want to use Inbound/Outbound split technology? (Y/N): " use_split || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
             case "$use_split" in
                 [Yy]*) USE_SPLIT_NETWORK="true"; break ;;
                 [Nn]*) break ;;
@@ -168,10 +169,18 @@ configure_network_ips() {
                 INBOUND_IP=${IPV4_LIST[0]}
                 OUTBOUND_IP=${IPV4_LIST[1]}
                 echo "Auto-selected: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"
+                while true; do
+                    read -p "Swap them? (y/N): " swap_choice || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
+                    case "$swap_choice" in
+                        [Yy]*) INBOUND_IP=${IPV4_LIST[1]}; OUTBOUND_IP=${IPV4_LIST[0]}; echo "Swapped: Inbound=$INBOUND_IP, Outbound=$OUTBOUND_IP"; break ;;
+                        [Nn]*|"") break ;;
+                        *) echo "Invalid input. Please enter exactly y or N." ;;
+                    esac
+                done
             else
                 MAX_IDX=$((NUM_IPS - 1))
                 while true; do
-                    read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx
+                    read -p "Select index for INBOUND IP (0-$MAX_IDX): " in_idx || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
                     if [[ "$in_idx" =~ ^[0-9]+$ ]] && [ "$in_idx" -ge 0 ] && [ "$in_idx" -le "$MAX_IDX" ]; then
                         INBOUND_IP=${IPV4_LIST[$in_idx]}
                         break
@@ -180,10 +189,14 @@ configure_network_ips() {
                     fi
                 done
                 while true; do
-                    read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx
+                    read -p "Select index for OUTBOUND IP (0-$MAX_IDX): " out_idx || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
                     if [[ "$out_idx" =~ ^[0-9]+$ ]] && [ "$out_idx" -ge 0 ] && [ "$out_idx" -le "$MAX_IDX" ]; then
-                        OUTBOUND_IP=${IPV4_LIST[$out_idx]}
-                        break
+                        if [ "${IPV4_LIST[$out_idx]}" == "$INBOUND_IP" ]; then
+                            echo "INBOUND and OUTBOUND must be different addresses."
+                        else
+                            OUTBOUND_IP=${IPV4_LIST[$out_idx]}
+                            break
+                        fi
                     else
                         echo "Invalid index."
                     fi
@@ -198,8 +211,20 @@ configure_network_ips() {
         OUTBOUND_IP=${IPV4_LIST[0]:-""}
     fi
 
+    if [ -n "$INBOUND_IP" ] && ! ip -4 addr show | grep -qw "$INBOUND_IP"; then
+        echo "WARNING: INBOUND_IP=$INBOUND_IP is not assigned to any local interface; sshd may fail to bind it."
+    fi
     if [ -z "$INBOUND_IP" ]; then
-        INBOUND_IP=$(curl -s ifconfig.me 2>/dev/null || echo "127.0.0.1")
+        # No local global IPv4 found. curl may not even be installed yet
+        # (install_packages runs later), so probe carefully and never
+        # silently substitute 127.0.0.1 — that would bind SSH to loopback.
+        if command -v curl >/dev/null 2>&1; then
+            INBOUND_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || true)
+        fi
+        if [ -z "$INBOUND_IP" ]; then
+            echo "WARNING: could not detect any IPv4 address; leaving INBOUND empty (sshd will listen on all interfaces)."
+            INBOUND_IP=""
+        fi
     fi
     if [ -z "$OUTBOUND_IP" ]; then
         OUTBOUND_IP="$INBOUND_IP"
@@ -293,7 +318,7 @@ setup_swap() {
 ask_hostname() {
     printf "\\033[33m# Change PRETTY hostname!!!\\033[0m\\n"
     while true; do
-        read -p "Type new PRETTY hostname here: " NEW_HOSTNAME
+        read -p "Type new PRETTY hostname here: " NEW_HOSTNAME || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
         if [ -n "$NEW_HOSTNAME" ]; then
             break
         else
@@ -318,6 +343,14 @@ harden_network() {
         rm -f /etc/modprobe.d/blacklist-ipv6.conf
         update-initramfs -u || true
     fi
+    # Stale per-interface IPv6 kill-switches from older script versions.
+    # Policy is IPv6 ENABLED; these drop-ins contradict 99-hardened.conf.
+    for stale in /etc/sysctl.d/11-disable-ipv6.conf /etc/sysctl.d/12-disable-ipv6.conf; do
+        if [ -f "$stale" ]; then
+            echo "Removing stale $stale (IPv6 stays enabled)..."
+            rm -f "$stale"
+        fi
+    done
     cat > /etc/sysctl.d/99-hardened.conf <<EOF
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
@@ -370,7 +403,7 @@ EOF
 
 install_packages() {
     echo "# Install standard tools and security packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd git nftables wireguard-tools jq needrestart
+    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo ufw cron rsyslog mc curl wget unzip p7zip-full htop unattended-upgrades apt-listchanges bsd-mailx iptables fail2ban dos2unix locales screen dnsutils openssl gpg autossh python3-systemd git nftables wireguard-tools jq needrestart || { echo "ERROR: package installation failed"; exit 1; }
 }
 
 configure_locales() {
@@ -496,7 +529,7 @@ ask_master_password_and_extract() {
     # NOTE: 7za receives the password via -p, so it is briefly visible in the
     # process list (ps) during extraction. Unavoidable with p7zip CLI.
     for attempt in {1..5}; do
-        read -s -p "Enter master password for setup & user (attempt $attempt/5): " MASTER_PASSWORD
+        read -s -p "Enter master password for setup & user (attempt $attempt/5): " MASTER_PASSWORD || { echo; echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
         echo
         if 7za x -p"$MASTER_PASSWORD" setup.7z -aoa >/dev/null 2>&1; then
             echo "Archive extracted successfully."
@@ -541,8 +574,7 @@ setup_users() {
         echo "Password for opossum updated."
     else
         local pass=$(openssl passwd -6 "$MASTER_PASSWORD")
-        useradd -m -p "$pass" opossum
-        if [ $? -eq 0 ]; then
+        if useradd -m -p "$pass" opossum; then
             echo "User opossum added to system!"
             usermod -aG sudo opossum
         else
@@ -590,16 +622,18 @@ configure_ufw() {
     ufw default allow outgoing || true
     for port in "${SSH_PORTS[@]}"; do
         if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
+            # NOTE: 'limit' already ACCEPTs the traffic (rate-limited). A plain
+            # 'allow' for the same port would match first and shadow the limit,
+            # so only the limit rule is kept. Deletes first for re-run safety.
             ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
-            ufw allow to "$INBOUND_IP" port "$port" proto tcp
             ufw delete limit to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
-            ufw limit to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
-            echo "Allowed+limited SSH port $port on $INBOUND_IP in UFW."
+            ufw limit to "$INBOUND_IP" port "$port" proto tcp || { echo "ERROR: ufw limit failed for $INBOUND_IP:$port"; exit 1; }
+            echo "Limited SSH port $port on $INBOUND_IP in UFW."
         else
             ufw delete allow "$port/tcp" 2>/dev/null || true
-            ufw allow "$port/tcp"
-            echo "Allowed SSH port $port in UFW."
-            ufw limit "$port/tcp" 2>/dev/null || true
+            ufw delete limit "$port/tcp" 2>/dev/null || true
+            ufw limit "$port/tcp" || { echo "ERROR: ufw limit failed for port $port"; exit 1; }
+            echo "Limited SSH port $port in UFW."
         fi
     done
     if [ -f /etc/wireguard/wg0.conf ]; then
@@ -621,7 +655,7 @@ setup_reverse_tunnel() {
         echo "ERROR: $KEY_PATH not found (it arrives inside setup.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
         echo "Reverse tunnel cannot be set up without this private key."
         while true; do
-            read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice
+            read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
             case "$key_choice" in
                 [Qq]*) echo "Aborted by user (missing ssh2router key)."; exit 1 ;;
                 [Cc]*) echo "Continuing without reverse tunnel." | tee -a "$REVERSE_LOG"; return 0 ;;
@@ -646,7 +680,7 @@ setup_reverse_tunnel() {
     fi
     
     printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
-    read USER_INPUT_PORT
+    read USER_INPUT_PORT || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
     local REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
     
     if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
@@ -664,7 +698,7 @@ setup_reverse_tunnel() {
             printf "[%d] %s\n" "$((i+1))" "${EXISTING_SERVICES[$i]}"
         done | tee -a "$REVERSE_LOG"
         echo "Options: [Number] delete specific, [A]ll delete all, [S]kip to add new"
-        read -p "Select action: " ACTION
+        read -p "Select action: " ACTION || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
         case "$ACTION" in
             [aA]* )
                 for svc in "${EXISTING_SERVICES[@]}"; do
@@ -752,7 +786,7 @@ setup_tailscale_exit_node() {
     echo " Optional: Tailscale Exit Node "
     echo "=============================================="
     while true; do
-        read -p "Install and configure Tailscale as Exit Node? [y/N]: " ts_answer
+        read -p "Install and configure Tailscale as Exit Node? [y/N]: " ts_answer || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
         case "$ts_answer" in
             [Yy]*) break ;;
             [Nn]*|"") echo "Skipping Tailscale setup."; return 0 ;;
@@ -851,6 +885,7 @@ EOF
 
 configure_cron() {
     local CRON_TMP=$(mktemp)
+    trap 'rm -f "$CRON_TMP"' RETURN
     crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
 
     add_cron_job() {
@@ -876,8 +911,11 @@ finalize_and_reboot() {
     apt-get autoremove --purge -y
 
     if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$OUTBOUND_IP" ]; then
-        local MAIN_IFACE=$(ip -4 route | grep default | awk '{print $5}' | head -n1)
-        local GATEWAY=$(ip -4 route | grep default | awk '{print $3}' | head -n1)
+        # Match only real default routes with a gateway ('default via ...'),
+        # so multipath/proto lines ('default proto static ...') can't leak
+        # words like 'static' into GATEWAY/MAIN_IFACE.
+        local MAIN_IFACE=$(ip -4 route show default | awk '$1=="default" && $2=="via" {print $5; exit}')
+        local GATEWAY=$(ip -4 route show default | awk '$1=="default" && $2=="via" {print $3; exit}')
         
         if [ -z "$GATEWAY" ] || [ -z "$MAIN_IFACE" ]; then
             echo "WARNING: Could not detect Gateway or Interface. Skipping outbound route setup."

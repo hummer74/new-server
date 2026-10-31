@@ -75,19 +75,27 @@ log "[PROMPT] Public key of this HEAD server (copy to TAIL):"
 log "[PROMPT] $HEAD_PUBKEY"
 echo "--------------------------------------------------" | tee -a "$LOG"
 
-read -rp "[PROMPT] Paste the public key of the TAIL server: " TAIL_PUBKEY
+read -rp "[PROMPT] Paste the public key of the TAIL server: " TAIL_PUBKEY || { echo "[ERROR] No input. Aborting."; exit 1; }
 log "[INFO] TAIL public key received: ${TAIL_PUBKEY:0:8}...${TAIL_PUBKEY: -8}"
 
-read -rp "[PROMPT] Enter TAIL server public IP or hostname: " TAIL_ENDPOINT
+read -rp "[PROMPT] Enter TAIL server public IP or hostname: " TAIL_ENDPOINT || { echo "[ERROR] No input. Aborting."; exit 1; }
 log "[INFO] TAIL endpoint: $TAIL_ENDPOINT"
 
-read -rp "[PROMPT] Enter WireGuard listen port for TAIL [default: 51820]: " TAIL_PORT
+read -rp "[PROMPT] Enter WireGuard listen port for TAIL [default: 51820]: " TAIL_PORT || { echo "[ERROR] No input. Aborting."; exit 1; }
 TAIL_PORT="${TAIL_PORT:-51820}"
 log "[INFO] TAIL port: $TAIL_PORT"
 
 echo "[4/9] Detecting network configuration..."
 MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}')
-MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+')
+if [ -z "$MAIN_IFACE" ]; then
+    echo "[ERROR] No default IPv4 route — cannot detect main interface. Aborting."
+    exit 1
+fi
+MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1 || true)
+if [ -z "$MAIN_IP" ]; then
+    echo "[ERROR] No IPv4 address on $MAIN_IFACE. Aborting."
+    exit 1
+fi
 log "[INFO] Main interface: $MAIN_IFACE ($MAIN_IP)"
 
 echo "[5/9] Creating wg-up.sh v4 (routing hooks)..."
@@ -150,8 +158,15 @@ for entry in $SUBNETS; do
     # Mark remaining traffic (Internet-bound)
     iptables -t mangle -A PREROUTING -s "$entry" -m comment --comment zai-head -j MARK --set-mark $MARK
 
-    # Masquerade BEFORE Docker's rules (insert at position 1)
-    iptables -t nat -I POSTROUTING 1 -s "$entry" -o wg0 -j MASQUERADE
+    # Masquerade BEFORE Docker's rules (insert at position 1).
+    # Tagged zai-head so wg-down removes exactly this rule (iptables -L
+    # never prints the interface, so matching by wg0 name does not work).
+    iptables -t nat -I POSTROUTING 1 -s "$entry" -o wg0 -j MASQUERADE -m comment --comment zai-head
+
+    # Clamp TCP MSS through the tunnel (MTU 1280): without this, 1500-byte
+    # segments from docker bridges can blackhole on PMTU-unfriendly paths.
+    iptables -t mangle -A FORWARD -o wg0 -p tcp --tcp-flags SYN,RST SYN -m comment --comment zai-head -j TCPMSS --clamp-mss-to-pmtu || echo "[wg-up] WARNING: TCPMSS clamp (out) failed"
+    iptables -t mangle -A FORWARD -i wg0 -p tcp --tcp-flags SYN,RST SYN -m comment --comment zai-head -j TCPMSS --clamp-mss-to-pmtu || echo "[wg-up] WARNING: TCPMSS clamp (in) failed"
 
     echo "[wg-up] Subnet #$COUNT: $entry -- DNAT-excluded + marked + masqueraded"
 done
@@ -192,11 +207,25 @@ while iptables -t mangle -S PREROUTING 2>/dev/null | grep -q 'zai-head'; do
 done
 echo "[wg-down] Own mangle PREROUTING rules removed (foreign rules kept)"
 
-# --- 2. Remove MASQUERADE rules for wg0 ---
-while iptables -t nat -L POSTROUTING | grep -q "wg0"; do
-    iptables -t nat -D POSTROUTING -o wg0 -j MASQUERADE 2>/dev/null || true
+# --- 2. Remove our MASQUERADE rules (tagged zai-head in wg-up) ---
+# NOTE: matching by interface name via 'iptables -L ... | grep wg0' does NOT
+# work (-L never prints the out-interface and our rules carry no wg0 string),
+# and '-D ... -o wg0' without '-s subnet' does not match the added rules.
+# Comment-based removal mirrors the mangle cleanup above.
+while iptables -t nat -S POSTROUTING 2>/dev/null | grep -q 'zai-head'; do
+    RULE=$(iptables -t nat -S POSTROUTING 2>/dev/null | grep -m1 'zai-head' | sed 's/^-A /-D /')
+    [ -n "$RULE" ] || break
+    iptables -t nat $RULE 2>/dev/null || break
 done
-echo "[wg-down] NAT MASQUERADE for wg0 removed"
+echo "[wg-down] NAT MASQUERADE added by zai-head removed"
+
+# --- 2b. Remove our TCPMSS clamp rules from FORWARD ---
+while iptables -t mangle -S FORWARD 2>/dev/null | grep -q 'zai-head'; do
+    RULE=$(iptables -t mangle -S FORWARD 2>/dev/null | grep -m1 'zai-head' | sed 's/^-A /-D /')
+    [ -n "$RULE" ] || break
+    iptables -t mangle $RULE 2>/dev/null || break
+done
+echo "[wg-down] Own mangle FORWARD rules removed (foreign rules kept)"
 
 # --- 3. Remove FORWARD rules from DOCKER-USER ---
 if iptables -L DOCKER-USER >/dev/null 2>&1; then

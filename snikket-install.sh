@@ -6,6 +6,7 @@ LOG_FILE="/root/snikket-install.log"
 exec 3>&1 4>&2
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
+echo "=== snikket-install run started at $(date '+%Y-%m-%d %H:%M:%S') (goes to log; re-runs append below) ==="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -48,7 +49,7 @@ echo "Detected OS: ${PRETTY_NAME:-$NAME $VERSION} (codename: $DEBIAN_CODENAME)"
 echo "=== Установка Snikket ==="
 
 # 1. Определяем реальный порт SSH
-SSH_PORT=$(sshd -T | grep -i "^port " | awk '{print $2}' | head -1)
+SSH_PORT=$(sshd -T 2>/dev/null | grep -i "^port " | awk '{print $2}' | head -1 || true)
 if [ -z "$SSH_PORT" ]; then
     SSH_PORT=22
     echo "SSH порт не найден, использую 22"
@@ -70,7 +71,7 @@ done
 
 # 3. Проверка DNS
 echo "Проверка DNS записей..."
-SERVER_IP=$(curl -s ifconfig.me)
+SERVER_IP=$(curl -4 -s --max-time 10 ifconfig.me 2>/dev/null || true)
 if [ -z "$SERVER_IP" ]; then
     echo "Не удалось определить внешний IP сервера. Пропускаем проверку DNS."
 else
@@ -84,7 +85,7 @@ else
         elif [ "$resolved_ip" != "$SERVER_IP" ]; then
             echo "Предупреждение: $fqdn указывает на $resolved_ip, а не на $SERVER_IP"
             echo "Сертификаты Let's Encrypt могут не выдаться до исправления DNS."
-            read -p "Продолжить всё равно? (y/N) " -n 1 -r
+            read -p "Продолжить всё равно? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
             echo
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 exit 1
@@ -189,7 +190,7 @@ fi
 
 # 9. Определение имени сервиса XMPP и создание приглашения с диагностикой
 echo "Определяем имя сервиса XMPP-сервера..."
-XMPP_SERVICE=$(docker compose config --services | grep -E '^(snikket|snikket_server)$' | head -1)
+XMPP_SERVICE=$(docker compose config --services 2>/dev/null | grep -E '^(snikket|snikket_server)$' | head -1 || true)
 if [ -z "$XMPP_SERVICE" ]; then
     echo "Ошибка: не удалось найти сервис XMPP-сервера в docker-compose.yml"
     echo "Доступные сервисы:"
@@ -208,8 +209,8 @@ INVITE=""
 while [ $elapsed -lt $MAX_WAIT ]; do
     attempt=$((attempt + 1))
     # Пробуем создать приглашение через docker compose exec
-    OUTPUT=$(docker compose exec -T $XMPP_SERVICE create-invite --admin --group default 2>&1) || true
-    INVITE=$(echo "$OUTPUT" | grep -Eo 'https?://[^ ]+' | head -1)
+    OUTPUT=$(docker compose exec -T "$XMPP_SERVICE" create-invite --admin --group default 2>&1) || true
+    INVITE=$(echo "$OUTPUT" | grep -Eo 'https?://[^ ]+' | head -1 || true)
     if [ -n "$INVITE" ]; then
         echo "✅ Ссылка-приглашение для администратора получена:"
         echo "$INVITE"
@@ -224,7 +225,7 @@ while [ $elapsed -lt $MAX_WAIT ]; do
             echo "Статус всех контейнеров:"
             docker compose ps
             echo "Последние 10 строк лога $XMPP_SERVICE:"
-            docker compose logs --tail=10 $XMPP_SERVICE
+            docker compose logs --tail=10 "$XMPP_SERVICE"
             echo "--------------------"
         fi
     fi
@@ -260,7 +261,7 @@ ignoreregex =
 EOF
 
 # Определяем путь к логам контейнера snikket (используем XMPP_SERVICE)
-SNIKKET_CONTAINER_ID=$(docker compose -f /etc/snikket/docker-compose.yml ps -q $XMPP_SERVICE 2>/dev/null || true)
+SNIKKET_CONTAINER_ID=$(docker compose -f /etc/snikket/docker-compose.yml ps -q "$XMPP_SERVICE" 2>/dev/null || true)
 if [ -z "$SNIKKET_CONTAINER_ID" ]; then
     echo "Предупреждение: не удалось определить ID контейнера $XMPP_SERVICE. Путь к логам будет указан приблизительно."
     SNIKKET_LOG_PATH="/var/lib/docker/containers/*snikket*/*.log"
@@ -272,6 +273,11 @@ fi
 TRUSTED_IPS="176.56.1.165 95.78.162.177 45.86.86.195 46.29.239.23 45.38.143.206 176.125.243.194 194.58.68.23"
 
 # Создаём отдельный файл конфигурации для наших джейлов в /etc/fail2ban/jail.d/
+# (бэкапим чужой, если файл уже существовал до нас)
+if [ -f /etc/fail2ban/jail.d/snikket.conf ]; then
+    cp /etc/fail2ban/jail.d/snikket.conf "/etc/fail2ban/jail.d/snikket.conf.bak.$(date +%Y%m%d%H%M%S)"
+    echo "Существующий jail.d/snikket.conf сохранён в бэкап."
+fi
 cat > /etc/fail2ban/jail.d/snikket.conf <<EOF
 [sshd]
 enabled   = true

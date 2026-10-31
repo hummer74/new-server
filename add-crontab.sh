@@ -7,11 +7,13 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Array of lines to add (use consistent delimiter style)
+# Keep byte-identical to configure_cron() in new-server.sh:
+# both use grep -Fx match, so any whitespace drift creates duplicates.
 lines=(
-    "@reboot            date >> /root/reboot.log"
-    "0 0 1 * *          date > /root/reboot.log"
-    "5 */3 * * *        /root/auto-update.sh"
-    "*/5 * * * *        systemctl reset-failed"
+    "@reboot         date >> /root/reboot.log"
+    "0 0 1 * *       date > /root/reboot.log"
+    "5 */3 * * *      /root/auto-update.sh"
+    "*/5 * * * *      systemctl reset-failed"
 )
 
 # Create a temporary file and ensure it is deleted

@@ -74,16 +74,24 @@ log "[PROMPT] Public key of this TAIL server (copy to HEAD):"
 log "[PROMPT] $TAIL_PUBKEY"
 echo "--------------------------------------------------" | tee -a "$LOG"
 
-read -rp "[PROMPT] Paste the public key of the HEAD server: " HEAD_PUBKEY
+read -rp "[PROMPT] Paste the public key of the HEAD server: " HEAD_PUBKEY || { echo "[ERROR] No input. Aborting."; exit 1; }
 log "[INFO] HEAD public key received: ${HEAD_PUBKEY:0:8}...${HEAD_PUBKEY: -8}"
 
-read -rp "[PROMPT] Enter WireGuard listen port [default: 51820]: " WG_PORT
+read -rp "[PROMPT] Enter WireGuard listen port [default: 51820]: " WG_PORT || { echo "[ERROR] No input. Aborting."; exit 1; }
 WG_PORT="${WG_PORT:-51820}"
 log "[INFO] WG port: $WG_PORT"
 
 echo "[4/8] Detecting network configuration + Split Network..."
 MAIN_IFACE=$(ip -4 route show default | awk '{print $5; exit}')
-MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1)
+if [ -z "$MAIN_IFACE" ]; then
+    echo "[ERROR] No default IPv4 route — cannot detect main interface. Aborting."
+    exit 1
+fi
+MAIN_IP=$(ip -4 addr show dev "$MAIN_IFACE" | awk '/inet / {print $2}' | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1 || true)
+if [ -z "$MAIN_IP" ]; then
+    echo "[ERROR] No IPv4 address on $MAIN_IFACE. Aborting."
+    exit 1
+fi
 log "[INFO] Main interface: $MAIN_IFACE ($MAIN_IP)"
 
 # Detect Split Network from new-server.sh config
@@ -94,9 +102,16 @@ if [ -f /root/.network_config ]; then
     source /root/.network_config
     log "[INFO] .network_config found: USE_SPLIT_NETWORK=$USE_SPLIT_NETWORK"
     if [ "$USE_SPLIT_NETWORK" = "true" ] && [ -n "$OUTBOUND_IP" ]; then
-        USE_SNAT="true"
-        SNAT_IP="$OUTBOUND_IP"
-        log "[INFO] Split Network detected. SNAT -> $SNAT_IP"
+        # SNAT to a non-local address blackholes outbound traffic (e.g. a stale
+        # 127.0.0.1 from a failed detect). Fall back to MASQUERADE instead.
+        if ! ip -4 addr show | grep -qw "$OUTBOUND_IP"; then
+            log "[WARN] OUTBOUND_IP=$OUTBOUND_IP from .network_config is not local — using MASQUERADE."
+            log "[INFO] Single IP mode. Using MASQUERADE."
+        else
+            USE_SNAT="true"
+            SNAT_IP="$OUTBOUND_IP"
+            log "[INFO] Split Network detected. SNAT -> $SNAT_IP"
+        fi
     else
         log "[INFO] Single IP mode. Using MASQUERADE."
     fi
@@ -112,7 +127,7 @@ else
         done
 
         while true; do
-            read -rp "[PROMPT] Select index of OUTBOUND IP for SNAT (0-$((NUM_IPS-1)), or press Enter for MASQUERADE): " out_idx
+            read -rp "[PROMPT] Select index of OUTBOUND IP for SNAT (0-$((NUM_IPS-1)), or press Enter for MASQUERADE): " out_idx || out_idx=""
             if [ -z "$out_idx" ]; then
                 log "[INFO] MASQUERADE mode (primary IP $MAIN_IP)."
                 break

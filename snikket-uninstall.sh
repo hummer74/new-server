@@ -6,6 +6,7 @@ LOG_FILE="/root/snikket-uninstall.log"
 exec 3>&1 4>&2
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "=== Script started at $(date '+%Y-%m-%d %H:%M:%S') ===" >&3
+echo "=== snikket-uninstall run started at $(date '+%Y-%m-%d %H:%M:%S') (goes to log; re-runs append below) ==="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -37,14 +38,14 @@ echo "  - fail2ban (без конфигурации Snikket)"
 echo "  - установленные пакеты curl, ufw, dnsutils (если не ответить 'y' на их удаление)"
 echo
 
-read -p "Продолжить удаление? (введите 'yes' для подтверждения): " confirm
+read -p "Продолжить удаление? (введите 'yes' для подтверждения): " confirm || { echo "ERROR: no input. Aborting."; exit 1; }
 if [ "$confirm" != "yes" ]; then
     echo "Отмена."
     exit 0
 fi
 
 # 1. Определяем реальный порт SSH (аналогично install-скрипту)
-SSH_PORT=$(sshd -T | grep -i "^port " | awk '{print $2}' | head -1)
+SSH_PORT=$(sshd -T 2>/dev/null | grep -i "^port " | awk '{print $2}' | head -1 || true)
 if [ -z "$SSH_PORT" ]; then
     SSH_PORT=22
     echo -e "${YELLOW}SSH порт не найден, использую 22${NC}"
@@ -55,7 +56,7 @@ fi
 # 2. Остановка и удаление контейнеров Snikket (Idempotent)
 if [ -d "/etc/snikket" ]; then
     echo "# Stopping and removing Snikket containers and volumes..."
-    if command -v docker >/dev/null 2>&1 && command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1; then
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
         cd /etc/snikket
         docker compose down -v 2>/dev/null || echo -e "${YELLOW}Containers not running or docker compose unavailable.${NC}"
         cd - >/dev/null || true
@@ -133,14 +134,14 @@ fi
 # 7. Опциональное удаление Docker и связанных пакетов
 echo -e "${YELLOW}Хотите удалить Docker и связанные пакеты (docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin)?${NC}"
 echo "Внимание: это может затронуть другие контейнеры, если они есть."
-read -p "Удалить Docker? (y/N) " -n 1 -r
+read -p "Удалить Docker? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Останавливаем контейнеры Snikket и удаляем пакеты Docker..."
     # Останавливаем только контейнеры проекта snikket (чужие не трогаем)
     docker ps -q --filter "label=com.docker.compose.project=snikket" 2>/dev/null | xargs -r docker stop 2>/dev/null || true
     # Удаляем образы/тома только с меткой snikket (опционально)
-    read -p "Удалить образы и тома Snikket (только с меткой snikket)? (y/N) " -n 1 -r
+    read -p "Удалить образы и тома Snikket (только с меткой snikket)? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         docker system prune -a --volumes -f --filter "label=com.docker.compose.project=snikket"
@@ -159,7 +160,7 @@ fi
 # 8. Опциональное удаление пакетов, установленных скриптом (curl, ufw, dnsutils)
 echo
 echo -e "${YELLOW}Пакеты curl, ufw, dnsutils были установлены скриптом установки.${NC}"
-read -p "Удалить их? (y/N) " -n 1 -r
+read -p "Удалить их? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     apt remove -y curl ufw dnsutils || echo -e "${YELLOW}Некоторые пакеты не были установлены или уже удалены.${NC}"
@@ -170,7 +171,7 @@ else
 fi
 
 # 9. Очистка кэша APT (опционально)
-read -p "Выполнить очистку кэша APT (apt clean)? (y/N) " -n 1 -r
+read -p "Выполнить очистку кэша APT (apt clean)? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     apt clean
@@ -183,7 +184,7 @@ echo "Система возвращена в состояние до устан�
 echo "Проверьте список правил UFW: ufw status numbered"
 echo "Проверьте статус fail2ban: fail2ban-client status"
 
-read -p "Перезагрузить сервер сейчас? (y/N) " -n 1 -r
+read -p "Перезагрузить сервер сейчас? (y/N) " -n 1 -r || { echo; echo "ERROR: no input. Aborting."; exit 1; }
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     reboot
