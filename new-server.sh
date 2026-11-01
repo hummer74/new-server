@@ -851,6 +851,10 @@ setup_tailscale_exit_node() {
         fi
 
         echo ">>> Creating fix-exit-node-ip.service..."
+        # NOTE: ts-postrouting is created by tailscaled AFTER it starts, so a plain
+        # After=tailscaled.service still races it at boot (observed: "No
+        # chain/target/match", exit 1). Wait for the chain, then apply SNAT
+        # idempotently; fail loud if the chain never appears.
         cat > /etc/systemd/system/fix-exit-node-ip.service <<EOF
 [Unit]
 Description=Fix Exit Node SNAT IP to $TS_OUTBOUND_IP
@@ -859,7 +863,7 @@ Requires=tailscaled.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP'
+ExecStart=/bin/bash -c 'for i in \$(seq 1 60); do iptables -t nat -L ts-postrouting >/dev/null 2>&1 && break; sleep 1; done; iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $TS_OUTBOUND_IP'
 
 [Install]
 WantedBy=multi-user.target
