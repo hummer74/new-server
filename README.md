@@ -29,7 +29,6 @@ ip -4 -o addr show scope global   # сверить: список должен п
 
 - `head-tail/zai-tunnel-*.sh` — WireGuard HEAD↔TAIL.
 - `tailscale-insall.sh`, `tailscale-exit-node.sh`, `tailscale-uninsall.sh` — Tailscale.
-- `snikket-*.sh` — XMPP Snikket в Docker.
 - `ssh2router.sh` — автономный reverse-туннель (дубль функции из `new-server.sh`).
 - `ip-check.sh`, `ipregion.sh` — диагностика сети/гео IP.
 - `add-crontab.sh`, `auto-update.sh`, `f2b-install.sh`, `create-swap512.sh`,
