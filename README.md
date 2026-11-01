@@ -27,7 +27,6 @@ ip -4 -o addr show scope global   # сверить: список должен п
 
 ## Остальные скрипты
 
-- `head-tail/zai-tunnel-*.sh` — WireGuard HEAD↔TAIL.
 - `tailscale-insall.sh`, `tailscale-exit-node.sh`, `tailscale-uninsall.sh` — Tailscale.
 - `ssh2router.sh` — автономный reverse-туннель (дубль функции из `new-server.sh`).
 - `ip-check.sh`, `ipregion.sh` — диагностика сети/гео IP.
