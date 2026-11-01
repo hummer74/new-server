@@ -370,7 +370,6 @@ declare -A CUSTOM_SERVICES=(
   [STEAM]="Steam"
   [PLAYSTATION]="PlayStation"
   [TIKTOK]="Tiktok"
-  [YOUTUBE_CDN]="YouTube CDN"
   [OOKLA_SPEEDTEST]="Ookla Speedtest"
   [JETBRAINS]="JetBrains"
   [BING]="Microsoft (Bing)"
@@ -410,7 +409,7 @@ declare -A CUSTOM_SERVICES_HANDLERS=(
   [CHATGPT]="lookup_chatgpt"
   [NETFLIX]="lookup_netflix"
   [SPOTIFY]="lookup_spotify"
-  [SPOTIFY_SIGNUP]="lookup_spotify_signup"
+  [SPOTIFY_SIGNUP]="lookup_spotify"
   [DEEZER]="lookup_deezer"
   [REDDIT]="lookup_reddit"
   [REDDIT_GUEST_ACCESS]="lookup_reddit_guest_access"
@@ -419,8 +418,6 @@ declare -A CUSTOM_SERVICES_HANDLERS=(
   [STEAM]="lookup_steam"
   [PLAYSTATION]="lookup_playstation"
   [TIKTOK]="lookup_tiktok"
-  [CLOUDFLARE_CDN]="lookup_cloudflare_cdn"
-  [YOUTUBE_CDN]="lookup_youtube_cdn"
   [NETFLIX_CDN]="lookup_netflix_cdn"
   [OOKLA_SPEEDTEST]="lookup_ookla_speedtest"
   [JETBRAINS]="lookup_jetbrains"
@@ -428,12 +425,10 @@ declare -A CUSTOM_SERVICES_HANDLERS=(
 )
 
 declare -A CDN_SERVICES=(
-  [YOUTUBE_CDN]="YouTube CDN"
   [NETFLIX_CDN]="Netflix CDN"
 )
 
 CDN_SERVICES_ORDER=(
-  "YOUTUBE_CDN"
   "NETFLIX_CDN"
 )
 
