@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fix directory permissions
-chmod 700 ~/.ssh
+chmod 700 ~/.ssh || true
 
 # Fix all key permissions (missing globs are not errors on re-runs)
 chmod 600 ~/.ssh/* 2>/dev/null || true

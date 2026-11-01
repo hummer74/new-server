@@ -211,9 +211,6 @@ configure_network_ips() {
         OUTBOUND_IP=${IPV4_LIST[0]:-""}
     fi
 
-    if [ -n "$INBOUND_IP" ] && ! ip -4 addr show | grep -qw "$INBOUND_IP"; then
-        echo "WARNING: INBOUND_IP=$INBOUND_IP is not assigned to any local interface; sshd may fail to bind it."
-    fi
     if [ -z "$INBOUND_IP" ]; then
         # No local global IPv4 found. curl may not even be installed yet
         # (install_packages runs later), so probe carefully and never
@@ -228,6 +225,16 @@ configure_network_ips() {
     fi
     if [ -z "$OUTBOUND_IP" ]; then
         OUTBOUND_IP="$INBOUND_IP"
+    fi
+    # Validate AFTER the curl fallback: boxes behind NAT get a public IP that
+    # is not assigned to any local interface. Pinning sshd/UFW/SNAT to it
+    # would fail or blackhole traffic, so drop it (sshd then listens on all).
+    if [ -n "$INBOUND_IP" ] && ! ip -4 addr show | grep -qw "$INBOUND_IP"; then
+        echo "WARNING: $INBOUND_IP is not assigned locally (NAT?) — not pinning services to it."
+        if [ "$OUTBOUND_IP" == "$INBOUND_IP" ]; then
+            OUTBOUND_IP=""
+        fi
+        INBOUND_IP=""
     fi
 
     cat > /root/.network_config <<EOF
@@ -271,8 +278,29 @@ EOF
     echo "APT sources fixed."
 }
 
+# Fresh cloud images run cloud-init / unattended-upgrades in the background,
+# holding the dpkg/apt locks. Starting apt while they hold the lock kills the
+# script instantly (observed live: pid 834). Wait bounded, then proceed.
+wait_for_apt_lock() {
+    echo "# Waiting for dpkg/apt locks (cloud-init, unattended-upgrades)..."
+    local waited=0
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+       || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+        sleep 5
+        waited=$((waited + 5))
+        if [ "$waited" -ge 300 ]; then
+            echo "WARNING: apt lock still held after ${waited}s — proceeding anyway."
+            break
+        fi
+    done
+    if command -v cloud-init >/dev/null 2>&1; then
+        cloud-init status --wait >/dev/null 2>&1 || true
+    fi
+}
+
 update_system() {
     echo "# Install all updates."
+    wait_for_apt_lock
     dpkg --configure -a
     apt-get clean -y && rm -rf /var/lib/apt/lists/*
     echo "# Updating package lists..."
@@ -833,6 +861,14 @@ setup_tailscale_exit_node() {
         if [ -z "${TS_OUTBOUND_IP:-}" ]; then
             TS_OUTBOUND_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)
         fi
+    fi
+
+    # SNAT --to-source requires a LOCALLY assigned address. Behind NAT the
+    # curl fallback returns the public IP, which is not local: SNAT to it
+    # either fails or blackholes traffic. Fall back to MASQUERADE instead.
+    if [ -n "${TS_OUTBOUND_IP:-}" ] && ! ip -4 addr show | grep -qw "$TS_OUTBOUND_IP"; then
+        echo "WARNING: $TS_OUTBOUND_IP is not assigned locally (NAT?) — leaving default MASQUERADE."
+        TS_OUTBOUND_IP=""
     fi
 
     if [ -z "${TS_OUTBOUND_IP:-}" ]; then

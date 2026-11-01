@@ -76,6 +76,8 @@ if [ -n "$OUTBOUND_IP" ]; then
     fi
 
     # --- Шаг 6: Создание systemd-сервиса для автоприменения после перезагрузок ---
+    # NOTE: держать ExecStart в sync с new-server.sh (там wait-loop до 60с:
+    # ts-postrouting создаётся tailscaled ПОСЛЕ старта сервиса, иначе гонка).
     echo ">>> Создание systemd-сервиса fix-exit-node-ip..."
     sudo tee /etc/systemd/system/fix-exit-node-ip.service > /dev/null << EOF
 [Unit]
@@ -85,7 +87,7 @@ Requires=tailscaled.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP'
+ExecStart=/bin/bash -c 'for i in \$(seq 1 60); do iptables -t nat -L ts-postrouting >/dev/null 2>&1 && break; sleep 1; done; iptables -t nat -D ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE 2>/dev/null; iptables -t nat -C ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP 2>/dev/null || iptables -t nat -A ts-postrouting -m mark --mark 0x40000/0xff0000 -j SNAT --to-source $OUTBOUND_IP'
 
 [Install]
 WantedBy=multi-user.target

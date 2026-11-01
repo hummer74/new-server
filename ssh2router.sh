@@ -45,7 +45,7 @@ else
 fi
 
 printf "Enter the REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
-read USER_INPUT_PORT
+read USER_INPUT_PORT || { echo "ERROR: no input. Aborting."; exit 1; }
 REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
 
 if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
@@ -68,7 +68,7 @@ if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
     done
     echo "----------------------------------------------"
     echo "Options: [Number] to delete specific, [A]ll to delete all, [S]kip to add new"
-    read -p "Select action: " ACTION
+    read -p "Select action: " ACTION || { echo "ERROR: no input. Aborting."; exit 1; }
 
     case "$ACTION" in
         [aA]* )
@@ -97,15 +97,46 @@ else
     echo "No existing reverse-tunnel services found. Proceeding..."
 fi
 
-# 4. Software installation
+# 4. Software installation (with bounded wait for apt lock on fresh boxes)
 if ! command -v autossh &> /dev/null; then
     echo "Updating packages and installing autossh..."
+    for w in $(seq 1 24); do
+        fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+        echo "apt lock held, waiting... ($w)"; sleep 5
+    done
     apt update && apt install autossh -y
 fi
 
-# 5. Create systemd template service
+# 4b. Key check (arrives via setup.7z) + split-network BindAddress
+KEY_PATH="/root/.ssh/ssh2router-key"
+if [ ! -f "$KEY_PATH" ]; then
+    echo "ERROR: $KEY_PATH not found."
+    while true; do
+        read -p "Abort [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice || { echo "ERROR: no input. Aborting."; exit 1; }
+        case "$key_choice" in
+            [Qq]*) echo "Aborted (missing ssh2router key)."; exit 1 ;;
+            [Cc]*) echo "Continuing without reverse tunnel."; exit 0 ;;
+            *) echo "Enter q or c." ;;
+        esac
+    done
+fi
+BIND_OPT=""
+if [ -f /root/.network_config ]; then
+    # shellcheck disable=SC1091
+    source /root/.network_config
+    if [ "${USE_SPLIT_NETWORK:-false}" == "true" ] && [ -n "${OUTBOUND_IP:-}" ]; then
+        if ip -4 addr show | grep -qw "$OUTBOUND_IP"; then
+            BIND_OPT="-o BindAddress=$OUTBOUND_IP"
+            echo "Split-network: binding outbound tunnel socket to $OUTBOUND_IP"
+        else
+            echo "WARNING: OUTBOUND_IP=$OUTBOUND_IP not local, connecting via default route."
+        fi
+    fi
+fi
+
+# 5. Create systemd template service (direct heredoc, same pattern as new-server.sh setup_reverse_tunnel)
 echo "Creating/Updating systemd unit file..."
-bash -c "cat <<EOF > $SERVICE_TEMPLATE
+cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
 Description=Reverse SSH Tunnel to OpenWrt on port %i
 After=network-online.target
@@ -114,15 +145,15 @@ Wants=network-online.target
 [Service]
 User=root
 Group=root
-Environment=\"AUTOSSH_GATETIME=0\"
+Environment="AUTOSSH_GATETIME=0"
 
 ExecStart=/usr/bin/autossh -M 0 -N \\
-    -o \"StrictHostKeyChecking=no\" \\
-    -o \"UserKnownHostsFile=/dev/null\" \\
-    -o \"ServerAliveInterval=60\" \\
-    -o \"ServerAliveCountMax=3\" \\
-    -o \"ExitOnForwardFailure=yes\" \\
-    -o \"TCPKeepAlive=yes\" \\
+    -o "StrictHostKeyChecking=no" \\
+    -o "UserKnownHostsFile=/dev/null" $BIND_OPT \\
+    -o "ServerAliveInterval=60" \\
+    -o "ServerAliveCountMax=3" \\
+    -o "ExitOnForwardFailure=yes" \\
+    -o "TCPKeepAlive=yes" \\
     -i /root/.ssh/ssh2router-key \\
     -p $ROUTER_PORT \\
     -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
@@ -133,7 +164,7 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF"
+EOF
 
 # Guard against the 127:0:0:1 corruption (dots must stay dots)
 if ! grep -q '127\.0\.0\.1' "$SERVICE_TEMPLATE"; then

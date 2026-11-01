@@ -130,9 +130,9 @@ log ""
 
 # Параметры sysctl IPv4
 log "--- IPv4 sysctl settings ---"
-sysctl net.ipv4.ip_forward 2>/dev/null | tee -a /dev/null
-sysctl net.ipv4.icmp_echo_ignore_all 2>/dev/null | tee -a /dev/null
-sysctl net.ipv4.tcp_syncookies 2>/dev/null | tee -a /dev/null
+sysctl net.ipv4.ip_forward 2>/dev/null | tee -a /dev/null || true
+sysctl net.ipv4.icmp_echo_ignore_all 2>/dev/null | tee -a /dev/null || true
+sysctl net.ipv4.tcp_syncookies 2>/dev/null | tee -a /dev/null || true
 log ""
 
 # Правила маршрутизации IPv4
@@ -198,9 +198,9 @@ if [ -z "$DISABLED_REASONS" ]; then
 
     # Параметры sysctl IPv6 на основном интерфейсе
     log "--- IPv6 sysctl settings on $MAIN_IFACE ---"
-    sysctl net.ipv6.conf."$MAIN_IFACE".disable_ipv6 2>/dev/null | tee -a /dev/null
-    sysctl net.ipv6.conf."$MAIN_IFACE".accept_ra 2>/dev/null | tee -a /dev/null
-    sysctl net.ipv6.conf.all.forwarding 2>/dev/null | tee -a /dev/null
+    sysctl net.ipv6.conf."$MAIN_IFACE".disable_ipv6 2>/dev/null | tee -a /dev/null || true
+    sysctl net.ipv6.conf."$MAIN_IFACE".accept_ra 2>/dev/null | tee -a /dev/null || true
+    sysctl net.ipv6.conf.all.forwarding 2>/dev/null | tee -a /dev/null || true
     log ""
 
     # Правила политической маршрутизации IPv6

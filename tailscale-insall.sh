@@ -553,6 +553,12 @@ main() {
 					$SUDO chmod 0644 /etc/apt/sources.list.d/tailscale.list
 				;;
 			esac
+			# LOCAL PATCH (new-server project): bounded wait for dpkg lock —
+			# upstream has none, standalone runs on fresh boxes hit cloud-init apt.
+			for w in $(seq 1 24); do
+				fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+				echo "apt lock held, waiting... ($w)"; sleep 5
+			done
 			$SUDO apt-get update
 			if [ -n "$TAILSCALE_VERSION" ]; then
 				$SUDO apt-get install -y "tailscale=$TAILSCALE_VERSION" tailscale-archive-keyring

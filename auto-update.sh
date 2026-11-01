@@ -8,9 +8,13 @@ fi
 
 echo "Starting system update and cleanup..."
 
-# 1. Clean and update package cache
+# 1. Clean and update package cache (bounded wait: cron may collide with unattended-upgrades)
 apt clean -y
 rm -rf /var/lib/apt/lists/*
+for w in $(seq 1 24); do
+    fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+    echo "apt lock held, waiting... ($w)"; sleep 5
+done
 apt update -y
 
 # 2. Check for available updates

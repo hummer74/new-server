@@ -1,0 +1,663 @@
+Detected OS: Debian GNU/Linux 13 (trixie) (codename: trixie)
+--- Network Analysis ---
+Checking and fixing APT sources...
+Removing conflicting .list file: /etc/apt/sources.list.d/default.list
+Removing conflicting .list file: /etc/apt/sources.list.d/security.list
+Removing conflicting .list file: /etc/apt/sources.list.d/updates.list
+APT sources fixed.
+# Install all updates.
+# Updating package lists...
+Get:1 http://security.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:2 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:3 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:4 http://security.debian.org/debian-security trixie-security/contrib amd64 Packages [3152 B]
+Get:5 http://security.debian.org/debian-security trixie-security/non-free-firmware amd64 Packages [544 B]
+Get:6 http://security.debian.org/debian-security trixie-security/main amd64 Packages [270 kB]
+Get:7 http://deb.debian.org/debian trixie/non-free amd64 Packages [100 kB]
+Get:8 http://deb.debian.org/debian trixie/non-free-firmware amd64 Packages [6884 B]
+Get:9 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+Get:10 http://deb.debian.org/debian trixie/contrib amd64 Packages [53.9 kB]
+Get:11 http://deb.debian.org/debian trixie-updates/main amd64 Packages [720 B]
+Fetched 10.3 MB in 2s (5147 kB/s)
+Reading package lists...
+# Full upgrade...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following NEW packages will be installed:
+  linux-image-6.12.113+deb13-amd64
+The following packages will be upgraded:
+  base-files bash bsdutils busybox ca-certificates curl dirmngr e2fsprogs
+  eject fdisk gir1.2-glib-2.0 gnupg-utils gpg gpg-agent gpg-wks-client gpgconf
+  gpgsm gpgv gzip libaudit-common libaudit1 libblkid1 libbrotli1 libc-bin
+  libc-l10n libc6 libcap2 libcap2-bin libcom-err2 libcurl4t64
+  libevent-core-2.1-7t64 libexpat1 libext2fs2t64 libfdisk1 libglib2.0-0t64
+  liblastlog2-2 liblzma5 libmount1 libpcre2-8-0 libpng16-16t64
+  libpython3.13-minimal libpython3.13-stdlib libsmartcols1 libsqlite3-0 libss2
+  libssh2-1t64 libssl3t64 libtasn1-6 libuuid1 linux-image-amd64 locales login
+  logsave mount openssl openssl-provider-legacy perl-base python3-idna
+  python3.13 python3.13-minimal qemu-guest-agent qemu-utils rsync rsyslog
+  tzdata util-linux
+66 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 146 MB of archives.
+After this operation, 112 MB of additional disk space will be used.
+Get:1 http://security.debian.org/debian-security trixie-security/main amd64 libexpat1 amd64 2.9.0-1~deb13u1 [126 kB]
+Get:2 http://deb.debian.org/debian trixie/main amd64 libc6 amd64 2.41-12+deb13u4 [2847 kB]
+Get:3 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-6.12.113+deb13-amd64 amd64 6.12.113-1 [108 MB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 base-files amd64 13.8+deb13u7 [88.3 kB]
+Get:5 http://deb.debian.org/debian trixie/main amd64 bash amd64 5.2.37-2+b10 [1501 kB]
+Get:6 http://deb.debian.org/debian trixie/main amd64 bsdutils amd64 1:2.41.5-0+deb13u1 [110 kB]
+Get:7 http://deb.debian.org/debian trixie/main amd64 gzip amd64 1.13-1+deb13u1 [139 kB]
+Get:8 http://deb.debian.org/debian trixie/main amd64 perl-base amd64 5.40.1-6+deb13u1 [1666 kB]
+Get:9 http://deb.debian.org/debian trixie/main amd64 liblastlog2-2 amd64 2.41.5-0+deb13u1 [28.8 kB]
+Get:10 http://deb.debian.org/debian trixie/main amd64 eject amd64 2.41.5-0+deb13u1 [61.1 kB]
+Get:11 http://deb.debian.org/debian trixie/main amd64 fdisk amd64 2.41.5-0+deb13u1 [159 kB]
+Get:12 http://deb.debian.org/debian trixie/main amd64 libsmartcols1 amd64 2.41.5-0+deb13u1 [143 kB]
+Get:13 http://deb.debian.org/debian trixie/main amd64 libblkid1 amd64 2.41.5-0+deb13u1 [172 kB]
+Get:14 http://deb.debian.org/debian trixie/main amd64 libmount1 amd64 2.41.5-0+deb13u1 [210 kB]
+Get:15 http://deb.debian.org/debian trixie/main amd64 mount amd64 2.41.5-0+deb13u1 [163 kB]
+Get:16 http://deb.debian.org/debian trixie/main amd64 libuuid1 amd64 2.41.5-0+deb13u1 [37.8 kB]
+Get:17 http://deb.debian.org/debian trixie/main amd64 util-linux amd64 2.41.5-0+deb13u1 [1242 kB]
+Get:18 http://deb.debian.org/debian trixie/main amd64 libfdisk1 amd64 2.41.5-0+deb13u1 [215 kB]
+Get:19 http://deb.debian.org/debian trixie/main amd64 libsqlite3-0 amd64 3.46.1-7+deb13u2 [915 kB]
+Get:20 http://deb.debian.org/debian trixie/main amd64 libc-bin amd64 2.41-12+deb13u4 [638 kB]
+Get:21 http://deb.debian.org/debian trixie/main amd64 libaudit-common all 1:4.0.2-2+deb13u1 [12.8 kB]
+Get:22 http://deb.debian.org/debian trixie/main amd64 libaudit1 amd64 1:4.0.2-2+deb13u1 [57.7 kB]
+Get:23 http://deb.debian.org/debian trixie/main amd64 login amd64 1:4.16.0-2+really2.41.5-0+deb13u1 [115 kB]
+Get:24 http://deb.debian.org/debian trixie/main amd64 logsave amd64 1.47.2-3+b12 [24.9 kB]
+Get:25 http://deb.debian.org/debian trixie/main amd64 libext2fs2t64 amd64 1.47.2-3+b12 [213 kB]
+Get:26 http://deb.debian.org/debian trixie/main amd64 e2fsprogs amd64 1.47.2-3+b12 [591 kB]
+Get:27 http://deb.debian.org/debian trixie/main amd64 python3.13 amd64 3.13.5-2+deb13u5 [757 kB]
+Get:28 http://deb.debian.org/debian trixie/main amd64 libpython3.13-stdlib amd64 3.13.5-2+deb13u5 [1959 kB]
+Get:29 http://deb.debian.org/debian trixie/main amd64 python3.13-minimal amd64 3.13.5-2+deb13u5 [2225 kB]
+Get:30 http://deb.debian.org/debian trixie/main amd64 libpython3.13-minimal amd64 3.13.5-2+deb13u5 [863 kB]
+Get:31 http://deb.debian.org/debian trixie-updates/main amd64 tzdata all 2026e-0+deb13u1 [266 kB]
+Get:32 http://deb.debian.org/debian trixie/main amd64 gir1.2-glib-2.0 amd64 2.84.4-3~deb13u5 [201 kB]
+Get:33 http://deb.debian.org/debian trixie/main amd64 libglib2.0-0t64 amd64 2.84.4-3~deb13u5 [1521 kB]
+Get:34 http://deb.debian.org/debian trixie/main amd64 qemu-guest-agent amd64 1:10.0.13+ds-0+deb13u1 [562 kB]
+Get:35 http://deb.debian.org/debian trixie/main amd64 libcap2 amd64 1:2.75-10+deb13u1+b3 [29.0 kB]
+Get:36 http://deb.debian.org/debian trixie/main amd64 libc-l10n all 2.41-12+deb13u4 [740 kB]
+Get:37 http://deb.debian.org/debian trixie/main amd64 locales all 2.41-12+deb13u4 [3931 kB]
+Get:38 http://deb.debian.org/debian trixie/main amd64 busybox amd64 1:1.37.0-6+b9 [485 kB]
+Get:39 http://deb.debian.org/debian trixie/main amd64 libssh2-1t64 amd64 1.11.1-1+deb13u2 [245 kB]
+Get:40 http://deb.debian.org/debian trixie/main amd64 gpgsm amd64 2.4.7-21+deb13u1+b5 [276 kB]
+Get:41 http://deb.debian.org/debian trixie/main amd64 gnupg-utils amd64 2.4.7-21+deb13u1+b5 [194 kB]
+Get:42 http://deb.debian.org/debian trixie/main amd64 gpg-wks-client amd64 2.4.7-21+deb13u1+b5 [109 kB]
+Get:43 http://deb.debian.org/debian trixie/main amd64 dirmngr amd64 2.4.7-21+deb13u1+b5 [384 kB]
+Get:44 http://deb.debian.org/debian trixie/main amd64 gpg amd64 2.4.7-21+deb13u1+b5 [636 kB]
+Get:45 http://deb.debian.org/debian trixie/main amd64 gpgconf amd64 2.4.7-21+deb13u1+b5 [129 kB]
+Get:46 http://deb.debian.org/debian trixie/main amd64 gpg-agent amd64 2.4.7-21+deb13u1+b5 [271 kB]
+Get:47 http://deb.debian.org/debian trixie/main amd64 gpgv amd64 2.4.7-21+deb13u1+b5 [241 kB]
+Get:48 http://deb.debian.org/debian trixie/main amd64 libcap2-bin amd64 1:2.75-10+deb13u1+b3 [36.5 kB]
+Get:49 http://deb.debian.org/debian trixie/main amd64 libcom-err2 amd64 1.47.2-3+b12 [25.0 kB]
+Get:50 http://deb.debian.org/debian trixie/main amd64 libss2 amd64 1.47.2-3+b12 [29.7 kB]
+Get:51 http://deb.debian.org/debian trixie/main amd64 libtasn1-6 amd64 4.20.0-2+deb13u1 [50.1 kB]
+Get:52 http://deb.debian.org/debian trixie/main amd64 python3-idna all 3.10-1+deb13u1 [43.0 kB]
+Get:53 http://deb.debian.org/debian trixie/main amd64 qemu-utils amd64 1:10.0.13+ds-0+deb13u1 [2024 kB]
+Get:54 http://deb.debian.org/debian trixie/main amd64 rsyslog amd64 8.2504.0-1+deb13u2 [758 kB]
+Get:55 http://security.debian.org/debian-security trixie-security/main amd64 openssl-provider-legacy amd64 3.5.7-1~deb13u3 [316 kB]
+Get:56 http://security.debian.org/debian-security trixie-security/main amd64 libssl3t64 amd64 3.5.7-1~deb13u3 [2458 kB]
+Get:57 http://security.debian.org/debian-security trixie-security/main amd64 liblzma5 amd64 5.8.1-1+deb13u2 [310 kB]
+Get:58 http://security.debian.org/debian-security trixie-security/main amd64 libpcre2-8-0 amd64 10.46-1~deb13u3 [299 kB]
+Get:59 http://security.debian.org/debian-security trixie-security/main amd64 rsync amd64 3.5.0+ds1-0+deb13u1 [502 kB]
+Get:60 http://security.debian.org/debian-security trixie-security/main amd64 openssl amd64 3.5.7-1~deb13u3 [1508 kB]
+Get:61 http://security.debian.org/debian-security trixie-security/main amd64 ca-certificates all 20250419+deb13u1 [161 kB]
+Get:62 http://security.debian.org/debian-security trixie-security/main amd64 libbrotli1 amd64 1.1.0-2+deb13u1 [304 kB]
+Get:63 http://security.debian.org/debian-security trixie-security/main amd64 curl amd64 8.14.1-2+deb13u7 [270 kB]
+Get:64 http://security.debian.org/debian-security trixie-security/main amd64 libcurl4t64 amd64 8.14.1-2+deb13u7 [392 kB]
+Get:65 http://security.debian.org/debian-security trixie-security/main amd64 libevent-core-2.1-7t64 amd64 2.1.13-stable-1~deb13u1 [133 kB]
+Get:66 http://security.debian.org/debian-security trixie-security/main amd64 libpng16-16t64 amd64 1.6.48-1+deb13u6 [283 kB]
+Get:67 http://security.debian.org/debian-security trixie-security/main amd64 linux-image-amd64 amd64 6.12.113-1 [1480 B]
+Preconfiguring packages ...
+Fetched 146 MB in 1s (129 MB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23686 files and directories currently installed.)
+Preparing to unpack .../libc6_2.41-12+deb13u4_amd64.deb ...
+Unpacking libc6:amd64 (2.41-12+deb13u4) over (2.41-12+deb13u3) ...
+Setting up libc6:amd64 (2.41-12+deb13u4) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23686 files and directories currently installed.)
+Preparing to unpack .../base-files_13.8+deb13u7_amd64.deb ...
+Unpacking base-files (13.8+deb13u7) over (13.8+deb13u5) ...
+Setting up base-files (13.8+deb13u7) ...
+Installing new version of config file /etc/debian_version ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../bash_5.2.37-2+b10_amd64.deb ...
+Unpacking bash (5.2.37-2+b10) over (5.2.37-2+b9) ...
+Setting up bash (5.2.37-2+b10) ...
+update-alternatives: using /usr/share/man/man7/bash-builtins.7.gz to provide /usr/share/man/man7/builtins.7.gz (builtins.7.gz) in auto mode
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../bsdutils_1%3a2.41.5-0+deb13u1_amd64.deb ...
+Unpacking bsdutils (1:2.41.5-0+deb13u1) over (1:2.41-5) ...
+Setting up bsdutils (1:2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../gzip_1.13-1+deb13u1_amd64.deb ...
+Unpacking gzip (1.13-1+deb13u1) over (1.13-1) ...
+Setting up gzip (1.13-1+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../perl-base_5.40.1-6+deb13u1_amd64.deb ...
+Unpacking perl-base (5.40.1-6+deb13u1) over (5.40.1-6) ...
+Setting up perl-base (5.40.1-6+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../liblastlog2-2_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking liblastlog2-2:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up liblastlog2-2:amd64 (2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../eject_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking eject (2.41.5-0+deb13u1) over (2.41-5) ...
+Preparing to unpack .../fdisk_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking fdisk (2.41.5-0+deb13u1) over (2.41-5) ...
+Preparing to unpack .../libsmartcols1_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking libsmartcols1:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up libsmartcols1:amd64 (2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../libblkid1_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking libblkid1:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up libblkid1:amd64 (2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../libmount1_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking libmount1:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up libmount1:amd64 (2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../mount_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking mount (2.41.5-0+deb13u1) over (2.41-5) ...
+Preparing to unpack .../libuuid1_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking libuuid1:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up libuuid1:amd64 (2.41.5-0+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23695 files and directories currently installed.)
+Preparing to unpack .../util-linux_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking util-linux (2.41.5-0+deb13u1) over (2.41-5) ...
+Setting up util-linux (2.41.5-0+deb13u1) ...
+fstrim.service is a disabled or a static unit not running, not starting it.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23700 files and directories currently installed.)
+Preparing to unpack .../libfdisk1_2.41.5-0+deb13u1_amd64.deb ...
+Unpacking libfdisk1:amd64 (2.41.5-0+deb13u1) over (2.41-5) ...
+Preparing to unpack .../libsqlite3-0_3.46.1-7+deb13u2_amd64.deb ...
+Unpacking libsqlite3-0:amd64 (3.46.1-7+deb13u2) over (3.46.1-7+deb13u1) ...
+Setting up libsqlite3-0:amd64 (3.46.1-7+deb13u2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23700 files and directories currently installed.)
+Preparing to unpack .../libc-bin_2.41-12+deb13u4_amd64.deb ...
+Unpacking libc-bin (2.41-12+deb13u4) over (2.41-12+deb13u3) ...
+Setting up libc-bin (2.41-12+deb13u4) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23700 files and directories currently installed.)
+Preparing to unpack .../libaudit-common_1%3a4.0.2-2+deb13u1_all.deb ...
+Unpacking libaudit-common (1:4.0.2-2+deb13u1) over (1:4.0.2-2) ...
+Setting up libaudit-common (1:4.0.2-2+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23700 files and directories currently installed.)
+Preparing to unpack .../libaudit1_1%3a4.0.2-2+deb13u1_amd64.deb ...
+Unpacking libaudit1:amd64 (1:4.0.2-2+deb13u1) over (1:4.0.2-2+b2) ...
+Setting up libaudit1:amd64 (1:4.0.2-2+deb13u1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23699 files and directories currently installed.)
+Preparing to unpack .../login_1%3a4.16.0-2+really2.41.5-0+deb13u1_amd64.deb ...
+Unpacking login (1:4.16.0-2+really2.41.5-0+deb13u1) over (1:4.16.0-2+really2.41-5) ...
+Preparing to unpack .../logsave_1.47.2-3+b12_amd64.deb ...
+Unpacking logsave (1.47.2-3+b12) over (1.47.2-3+b11) ...
+Preparing to unpack .../libext2fs2t64_1.47.2-3+b12_amd64.deb ...
+Leaving 'diversion of /lib/x86_64-linux-gnu/libe2p.so.2 to /lib/x86_64-linux-gnu/libe2p.so.2.usr-is-merged by libext2fs2t64'
+Leaving 'diversion of /lib/x86_64-linux-gnu/libe2p.so.2.3 to /lib/x86_64-linux-gnu/libe2p.so.2.3.usr-is-merged by libext2fs2t64'
+Leaving 'diversion of /lib/x86_64-linux-gnu/libext2fs.so.2 to /lib/x86_64-linux-gnu/libext2fs.so.2.usr-is-merged by libext2fs2t64'
+Leaving 'diversion of /lib/x86_64-linux-gnu/libext2fs.so.2.4 to /lib/x86_64-linux-gnu/libext2fs.so.2.4.usr-is-merged by libext2fs2t64'
+Unpacking libext2fs2t64:amd64 (1.47.2-3+b12) over (1.47.2-3+b11) ...
+Setting up libext2fs2t64:amd64 (1.47.2-3+b12) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 23701 files and directories currently installed.)
+Preparing to unpack .../e2fsprogs_1.47.2-3+b12_amd64.deb ...
+Unpacking e2fsprogs (1.47.2-3+b12) over (1.47.2-3+b11) ...
+Preparing to unpack .../libexpat1_2.9.0-1~deb13u1_amd64.deb ...
+Unpacking libexpat1:amd64 (2.9.0-1~deb13u1) over (2.7.1-2) ...
+Selecting previously unselected package linux-image-6.12.113+deb13-amd64.
+Preparing to unpack .../linux-image-6.12.113+deb13-amd64_6.12.113-1_amd64.deb ...
+Unpacking linux-image-6.12.113+deb13-amd64 (6.12.113-1) ...
+Preparing to unpack .../openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb ...
+Unpacking openssl-provider-legacy (3.5.7-1~deb13u3) over (3.5.6-1~deb13u2) ...
+Setting up openssl-provider-legacy (3.5.7-1~deb13u3) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28903 files and directories currently installed.)
+Preparing to unpack .../libssl3t64_3.5.7-1~deb13u3_amd64.deb ...
+Unpacking libssl3t64:amd64 (3.5.7-1~deb13u3) over (3.5.6-1~deb13u2) ...
+Setting up libssl3t64:amd64 (3.5.7-1~deb13u3) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28903 files and directories currently installed.)
+Preparing to unpack .../0-python3.13_3.13.5-2+deb13u5_amd64.deb ...
+Unpacking python3.13 (3.13.5-2+deb13u5) over (3.13.5-2+deb13u2) ...
+Preparing to unpack .../1-libpython3.13-stdlib_3.13.5-2+deb13u5_amd64.deb ...
+Unpacking libpython3.13-stdlib:amd64 (3.13.5-2+deb13u5) over (3.13.5-2+deb13u2) ...
+Preparing to unpack .../2-python3.13-minimal_3.13.5-2+deb13u5_amd64.deb ...
+Unpacking python3.13-minimal (3.13.5-2+deb13u5) over (3.13.5-2+deb13u2) ...
+Preparing to unpack .../3-libpython3.13-minimal_3.13.5-2+deb13u5_amd64.deb ...
+Unpacking libpython3.13-minimal:amd64 (3.13.5-2+deb13u5) over (3.13.5-2+deb13u2) ...
+Preparing to unpack .../4-tzdata_2026e-0+deb13u1_all.deb ...
+Unpacking tzdata (2026e-0+deb13u1) over (2026b-0+deb13u1) ...
+Preparing to unpack .../5-liblzma5_5.8.1-1+deb13u2_amd64.deb ...
+Unpacking liblzma5:amd64 (5.8.1-1+deb13u2) over (5.8.1-1) ...
+Setting up liblzma5:amd64 (5.8.1-1+deb13u2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28903 files and directories currently installed.)
+Preparing to unpack .../gir1.2-glib-2.0_2.84.4-3~deb13u5_amd64.deb ...
+Unpacking gir1.2-glib-2.0:amd64 (2.84.4-3~deb13u5) over (2.84.4-3~deb13u3) ...
+Preparing to unpack .../libpcre2-8-0_10.46-1~deb13u3_amd64.deb ...
+Unpacking libpcre2-8-0:amd64 (10.46-1~deb13u3) over (10.46-1~deb13u1) ...
+Setting up libpcre2-8-0:amd64 (10.46-1~deb13u3) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28903 files and directories currently installed.)
+Preparing to unpack .../libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb ...
+Unpacking libglib2.0-0t64:amd64 (2.84.4-3~deb13u5) over (2.84.4-3~deb13u3) ...
+Preparing to unpack .../qemu-guest-agent_1%3a10.0.13+ds-0+deb13u1_amd64.deb ...
+Unpacking qemu-guest-agent (1:10.0.13+ds-0+deb13u1) over (1:10.0.8+ds-0+deb13u1+b2) ...
+Preparing to unpack .../rsync_3.5.0+ds1-0+deb13u1_amd64.deb ...
+Unpacking rsync (3.5.0+ds1-0+deb13u1) over (3.4.1+ds1-5+deb13u3) ...
+Preparing to unpack .../libcap2_1%3a2.75-10+deb13u1+b3_amd64.deb ...
+Unpacking libcap2:amd64 (1:2.75-10+deb13u1+b3) over (1:2.75-10+deb13u1+b1) ...
+Setting up libcap2:amd64 (1:2.75-10+deb13u1+b3) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28902 files and directories currently installed.)
+Preparing to unpack .../00-openssl_3.5.7-1~deb13u3_amd64.deb ...
+Unpacking openssl (3.5.7-1~deb13u3) over (3.5.6-1~deb13u2) ...
+Preparing to unpack .../01-ca-certificates_20250419+deb13u1_all.deb ...
+Unpacking ca-certificates (20250419+deb13u1) over (20250419) ...
+Preparing to unpack .../02-libc-l10n_2.41-12+deb13u4_all.deb ...
+Unpacking libc-l10n (2.41-12+deb13u4) over (2.41-12+deb13u3) ...
+Preparing to unpack .../03-locales_2.41-12+deb13u4_all.deb ...
+Unpacking locales (2.41-12+deb13u4) over (2.41-12+deb13u3) ...
+Preparing to unpack .../04-busybox_1%3a1.37.0-6+b9_amd64.deb ...
+Unpacking busybox (1:1.37.0-6+b9) over (1:1.37.0-6+b8) ...
+Preparing to unpack .../05-libbrotli1_1.1.0-2+deb13u1_amd64.deb ...
+Unpacking libbrotli1:amd64 (1.1.0-2+deb13u1) over (1.1.0-2+b7) ...
+Preparing to unpack .../06-libssh2-1t64_1.11.1-1+deb13u2_amd64.deb ...
+Unpacking libssh2-1t64:amd64 (1.11.1-1+deb13u2) over (1.11.1-1+deb13u1) ...
+Preparing to unpack .../07-curl_8.14.1-2+deb13u7_amd64.deb ...
+Unpacking curl (8.14.1-2+deb13u7) over (8.14.1-2+deb13u3) ...
+Preparing to unpack .../08-libcurl4t64_8.14.1-2+deb13u7_amd64.deb ...
+Unpacking libcurl4t64:amd64 (8.14.1-2+deb13u7) over (8.14.1-2+deb13u3) ...
+Preparing to unpack .../09-gpgsm_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpgsm (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../10-gnupg-utils_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gnupg-utils (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../11-gpg-wks-client_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpg-wks-client (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../12-dirmngr_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking dirmngr (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../13-gpg_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpg (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../14-gpgconf_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpgconf (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../15-gpg-agent_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpg-agent (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../16-gpgv_2.4.7-21+deb13u1+b5_amd64.deb ...
+Unpacking gpgv (2.4.7-21+deb13u1+b5) over (2.4.7-21+deb13u1+b3) ...
+Preparing to unpack .../17-libcap2-bin_1%3a2.75-10+deb13u1+b3_amd64.deb ...
+Unpacking libcap2-bin (1:2.75-10+deb13u1+b3) over (1:2.75-10+deb13u1+b1) ...
+Preparing to unpack .../18-libcom-err2_1.47.2-3+b12_amd64.deb ...
+Unpacking libcom-err2:amd64 (1.47.2-3+b12) over (1.47.2-3+b11) ...
+Preparing to unpack .../19-libevent-core-2.1-7t64_2.1.13-stable-1~deb13u1_amd64.deb ...
+Unpacking libevent-core-2.1-7t64:amd64 (2.1.13-stable-1~deb13u1) over (2.1.12-stable-10+b1) ...
+Preparing to unpack .../20-libpng16-16t64_1.6.48-1+deb13u6_amd64.deb ...
+Unpacking libpng16-16t64:amd64 (1.6.48-1+deb13u6) over (1.6.48-1+deb13u5) ...
+Preparing to unpack .../21-libss2_1.47.2-3+b12_amd64.deb ...
+Unpacking libss2:amd64 (1.47.2-3+b12) over (1.47.2-3+b11) ...
+Preparing to unpack .../22-libtasn1-6_4.20.0-2+deb13u1_amd64.deb ...
+Unpacking libtasn1-6:amd64 (4.20.0-2+deb13u1) over (4.20.0-2) ...
+Preparing to unpack .../23-linux-image-amd64_6.12.113-1_amd64.deb ...
+Unpacking linux-image-amd64 (6.12.113-1) over (6.12.95-1) ...
+Preparing to unpack .../24-python3-idna_3.10-1+deb13u1_all.deb ...
+Unpacking python3-idna (3.10-1+deb13u1) over (3.10-1) ...
+Preparing to unpack .../25-qemu-utils_1%3a10.0.13+ds-0+deb13u1_amd64.deb ...
+Unpacking qemu-utils (1:10.0.13+ds-0+deb13u1) over (1:10.0.8+ds-0+deb13u1+b2) ...
+Preparing to unpack .../26-rsyslog_8.2504.0-1+deb13u2_amd64.deb ...
+Unpacking rsyslog (8.2504.0-1+deb13u2) over (8.2504.0-1) ...
+Setting up libexpat1:amd64 (2.9.0-1~deb13u1) ...
+Setting up libc-l10n (2.41-12+deb13u4) ...
+Setting up linux-image-6.12.113+deb13-amd64 (6.12.113-1) ...
+I: /vmlinuz is now a symlink to boot/vmlinuz-6.12.113+deb13-amd64
+I: /initrd.img is now a symlink to boot/initrd.img-6.12.113+deb13-amd64
+/etc/kernel/postinst.d/initramfs-tools:
+update-initramfs: Generating /boot/initrd.img-6.12.113+deb13-amd64
+W: No zstd in /usr/bin:/sbin:/bin, using gzip
+/etc/kernel/postinst.d/zz-update-grub:
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-6.12.113+deb13-amd64
+Found initrd image: /boot/initrd.img-6.12.113+deb13-amd64
+Found linux image: /boot/vmlinuz-6.12.95+deb13-amd64
+Found initrd image: /boot/initrd.img-6.12.95+deb13-amd64
+Adding boot menu entry for UEFI Firmware Settings ...
+done
+Setting up libbrotli1:amd64 (1.1.0-2+deb13u1) ...
+Setting up rsyslog (8.2504.0-1+deb13u2) ...
+Setting up libcom-err2:amd64 (1.47.2-3+b12) ...
+Setting up linux-image-amd64 (6.12.113-1) ...
+Setting up locales (2.41-12+deb13u4) ...
+Generating locales (this might take a while)...
+  en_US.UTF-8... done
+Generation complete.
+Setting up tzdata (2026e-0+deb13u1) ...
+
+Current default time zone: 'Etc/UTC'
+Local time is now:      Wed Oct 28 10:45:04 UTC 2026.
+Universal Time is now:  Wed Oct 28 10:45:04 UTC 2026.
+Run 'dpkg-reconfigure tzdata' if you wish to change it.
+
+Setting up libcap2-bin (1:2.75-10+deb13u1+b3) ...
+Setting up eject (2.41.5-0+deb13u1) ...
+Setting up libpython3.13-minimal:amd64 (3.13.5-2+deb13u5) ...
+Setting up busybox (1:1.37.0-6+b9) ...
+Setting up libglib2.0-0t64:amd64 (2.84.4-3~deb13u5) ...
+No schema files found: doing nothing.
+Setting up libpng16-16t64:amd64 (1.6.48-1+deb13u6) ...
+Setting up python3-idna (3.10-1+deb13u1) ...
+Setting up libss2:amd64 (1.47.2-3+b12) ...
+Setting up gir1.2-glib-2.0:amd64 (2.84.4-3~deb13u5) ...
+Setting up logsave (1.47.2-3+b12) ...
+Setting up libfdisk1:amd64 (2.41.5-0+deb13u1) ...
+Setting up mount (2.41.5-0+deb13u1) ...
+Setting up gpgv (2.4.7-21+deb13u1+b5) ...
+Setting up gpgconf (2.4.7-21+deb13u1+b5) ...
+Setting up libtasn1-6:amd64 (4.20.0-2+deb13u1) ...
+Setting up python3.13-minimal (3.13.5-2+deb13u5) ...
+Setting up libevent-core-2.1-7t64:amd64 (2.1.13-stable-1~deb13u1) ...
+Setting up qemu-utils (1:10.0.13+ds-0+deb13u1) ...
+Setting up libssh2-1t64:amd64 (1.11.1-1+deb13u2) ...
+Setting up openssl (3.5.7-1~deb13u3) ...
+Setting up libpython3.13-stdlib:amd64 (3.13.5-2+deb13u5) ...
+Setting up gpg (2.4.7-21+deb13u1+b5) ...
+Setting up rsync (3.5.0+ds1-0+deb13u1) ...
+rsync.service is a disabled or a static unit not running, not starting it.
+Setting up gnupg-utils (2.4.7-21+deb13u1+b5) ...
+Setting up login (1:4.16.0-2+really2.41.5-0+deb13u1) ...
+Setting up gpg-agent (2.4.7-21+deb13u1+b5) ...
+Setting up libcurl4t64:amd64 (8.14.1-2+deb13u7) ...
+Setting up python3.13 (3.13.5-2+deb13u5) ...
+Setting up gpgsm (2.4.7-21+deb13u1+b5) ...
+Setting up qemu-guest-agent (1:10.0.13+ds-0+deb13u1) ...
+Installing new version of config file /etc/qemu/fsfreeze-hook ...
+Setting up e2fsprogs (1.47.2-3+b12) ...
+update-initramfs: deferring update (trigger activated)
+Setting up fdisk (2.41.5-0+deb13u1) ...
+Setting up dirmngr (2.4.7-21+deb13u1+b5) ...
+Setting up ca-certificates (20250419+deb13u1) ...
+Updating certificates in /etc/ssl/certs...
+rehash: warning: skipping ca-certificates.crt, it does not contain exactly one certificate or CRL
+0 added, 2 removed; done.
+Setting up curl (8.14.1-2+deb13u7) ...
+Setting up gpg-wks-client (2.4.7-21+deb13u1+b5) ...
+Processing triggers for systemd (257.13-1~deb13u1) ...
+Processing triggers for debianutils (5.23.2) ...
+Processing triggers for initramfs-tools (0.148.4) ...
+update-initramfs: Generating /boot/initrd.img-6.12.113+deb13-amd64
+W: No zstd in /usr/bin:/sbin:/bin, using gzip
+Processing triggers for libc-bin (2.41-12+deb13u4) ...
+Processing triggers for ca-certificates (20250419+deb13u1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+done.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+# Creating swap file (512 MB)...
+Using fallocate.
+Setting up swapspace version 1, size = 512 MiB (536866816 bytes)
+no label, UUID=9ca7b8e1-9b42-4d0c-9868-94ece49a09cf
+Swap configured.
+[33m# Change PRETTY hostname!!![0m
+Type new PRETTY hostname here: environment: line 296: read: read error: 0: Input/output error
+Detected OS: Debian GNU/Linux 13 (trixie) (codename: trixie)
+--- Network Analysis ---
+Checking and fixing APT sources...
+APT sources fixed.
+# Install all updates.
+# Updating package lists...
+Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:2 http://security.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:3 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:4 http://security.debian.org/debian-security trixie-security/contrib amd64 Packages [3152 B]
+Get:5 http://security.debian.org/debian-security trixie-security/non-free-firmware amd64 Packages [544 B]
+Get:6 http://security.debian.org/debian-security trixie-security/main amd64 Packages [292 kB]
+Get:7 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+Get:8 http://deb.debian.org/debian trixie/contrib amd64 Packages [53.9 kB]
+Get:9 http://deb.debian.org/debian trixie/non-free-firmware amd64 Packages [6884 B]
+Get:10 http://deb.debian.org/debian trixie/non-free amd64 Packages [100 kB]
+Get:11 http://deb.debian.org/debian trixie-updates/main amd64 Packages [1108 B]
+Fetched 10.4 MB in 2s (4951 kB/s)
+Reading package lists...
+# Full upgrade...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages will be upgraded:
+  tzdata
+1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Need to get 268 kB of archives.
+After this operation, 1024 B of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie-updates/main amd64 tzdata all 2026f-0+deb13u1 [268 kB]
+Preconfiguring packages ...
+Fetched 268 kB in 0s (4708 kB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 28897 files and directories currently installed.)
+Preparing to unpack .../tzdata_2026f-0+deb13u1_all.deb ...
+Unpacking tzdata (2026f-0+deb13u1) over (2026e-0+deb13u1) ...
+Setting up tzdata (2026f-0+deb13u1) ...
+
+Current default time zone: 'Etc/UTC'
+Local time is now:      Fri Oct 30 20:21:58 UTC 2026.
+Universal Time is now:  Fri Oct 30 20:21:58 UTC 2026.
+Run 'dpkg-reconfigure tzdata' if you wish to change it.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+Swap file /swapfile is already active. Skipping swap creation.
+[33m# Change PRETTY hostname!!![0m
+Type new PRETTY hostname here: 
+IPv6 stays ENABLED. Blocking echo/probing, enabling forwarding...
+* Applying /usr/lib/sysctl.d/10-coredump-debian.conf ...
+* Applying /etc/sysctl.d/11-disable-ipv6.conf ...
+* Applying /etc/sysctl.d/11-enable-ipv6.conf ...
+* Applying /etc/sysctl.d/12-disable-ipv6.conf ...
+* Applying /etc/sysctl.d/12-enable-ipv6.conf ...
+* Applying /usr/lib/sysctl.d/50-default.conf ...
+* Applying /usr/lib/sysctl.d/50-pid-max.conf ...
+* Applying /etc/sysctl.d/99-hardened.conf ...
+* Applying /etc/sysctl.conf ...
+kernel.core_pattern = core
+net.ipv6.conf.eth0.disable_ipv6 = 1
+net.ipv6.conf.eth0.disable_ipv6 = 0
+kernel.sysrq = 0x01b6
+kernel.core_uses_pid = 1
+net.ipv4.conf.default.rp_filter = 2
+net.ipv4.conf.eth0.rp_filter = 2
+net.ipv4.conf.lo.rp_filter = 2
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.eth0.accept_source_route = 0
+net.ipv4.conf.lo.accept_source_route = 0
+net.ipv4.conf.default.promote_secondaries = 1
+net.ipv4.conf.eth0.promote_secondaries = 1
+net.ipv4.conf.lo.promote_secondaries = 1
+net.ipv4.ping_group_range = 0 2147483647
+net.core.default_qdisc = fq_codel
+fs.protected_hardlinks = 1
+fs.protected_symlinks = 1
+fs.protected_regular = 2
+fs.protected_fifos = 1
+vm.max_map_count = 1048576
+kernel.pid_max = 4194304
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+net.ipv4.icmp_echo_ignore_all = 1
+net.ipv6.icmp.echo_ignore_all = 1
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv6.conf.eth0.accept_ra = 2
+net.ipv6.conf.all.forwarding = 1
+net.ipv6.conf.all.addr_gen_mode = 0
+net.ipv6.conf.eth0.use_tempaddr = 0
+
+[33m# Configure SSH to listen on specified ports.[0m
+SSH service reloaded successfully.
+
+# Install standard tools and security packages...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+sudo is already the newest version (1.9.16p2-3+deb13u2).
+cron is already the newest version (3.0pl1-197).
+rsyslog is already the newest version (8.2504.0-1+deb13u2).
+mc is already the newest version (3:4.8.33-1+deb13u1).
+curl is already the newest version (8.14.1-2+deb13u7).
+wget is already the newest version (1.25.0-2).
+htop is already the newest version (3.4.1-5).
+iptables is already the newest version (1.8.11-2).
+locales is already the newest version (2.41-12+deb13u4).
+screen is already the newest version (4.9.1-3).
+openssl is already the newest version (3.5.7-1~deb13u3).
+openssl set to manually installed.
+gpg is already the newest version (2.4.7-21+deb13u1+b5).
+gpg set to manually installed.
+Solving dependencies...
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ iptables-persistent : Depends: netfilter-persistent (= 1.0.23) but it is not installable
+ ufw : Breaks: iptables-persistent but 1.0.23 is to be installed
+E: Unable to correct problems, you have held broken packages.
+E: The following information from --solver 3.0 may provide additional context:
+   Unable to satisfy dependencies. Reached two conflicting decisions:
+   1. ufw:amd64=0.36.2-9 is selected for install
+   2. ufw:amd64 is not selected for install because:
+      1. iptables-persistent:amd64=1.0.23 is selected for install
+      2. ufw:amd64 Breaks iptables-persistent
+Detected OS: Debian GNU/Linux 13 (trixie) (codename: trixie)
+--- Network Analysis ---
+Checking and fixing APT sources...
+APT sources fixed.
+# Install all updates.
+# Updating package lists...
+Get:1 http://security.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:2 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:3 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:4 http://security.debian.org/debian-security trixie-security/contrib amd64 Packages [3152 B]
+Get:5 http://security.debian.org/debian-security trixie-security/non-free-firmware amd64 Packages [544 B]
+Get:6 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+Get:7 http://security.debian.org/debian-security trixie-security/main amd64 Packages [292 kB]
+Get:8 http://deb.debian.org/debian trixie/non-free-firmware amd64 Packages [6884 B]
+Get:9 http://deb.debian.org/debian trixie/non-free amd64 Packages [100 kB]
+Get:10 http://deb.debian.org/debian trixie/contrib amd64 Packages [53.9 kB]
+Get:11 http://deb.debian.org/debian trixie-updates/main amd64 Packages [1108 B]
+Fetched 10.4 MB in 2s (5865 kB/s)
+Reading package lists...
+# Full upgrade...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+Swap file /swapfile is already active. Skipping swap creation.
+[33m# Change PRETTY hostname!!![0m
+Type new PRETTY hostname here: 
+IPv6 stays ENABLED. Blocking echo/probing, enabling forwarding...
+* Applying /usr/lib/sysctl.d/10-coredump-debian.conf ...
+* Applying /etc/sysctl.d/11-disable-ipv6.conf ...
+* Applying /etc/sysctl.d/11-enable-ipv6.conf ...
+* Applying /etc/sysctl.d/12-disable-ipv6.conf ...
+* Applying /etc/sysctl.d/12-enable-ipv6.conf ...
+* Applying /usr/lib/sysctl.d/50-default.conf ...
+* Applying /usr/lib/sysctl.d/50-pid-max.conf ...
+* Applying /etc/sysctl.d/99-hardened.conf ...
+* Applying /etc/sysctl.conf ...
+kernel.core_pattern = core
+net.ipv6.conf.eth0.disable_ipv6 = 1
+net.ipv6.conf.eth0.disable_ipv6 = 0
+kernel.sysrq = 0x01b6
+kernel.core_uses_pid = 1
+net.ipv4.conf.default.rp_filter = 2
+net.ipv4.conf.eth0.rp_filter = 2
+net.ipv4.conf.lo.rp_filter = 2
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.eth0.accept_source_route = 0
+net.ipv4.conf.lo.accept_source_route = 0
+net.ipv4.conf.default.promote_secondaries = 1
+net.ipv4.conf.eth0.promote_secondaries = 1
+net.ipv4.conf.lo.promote_secondaries = 1
+net.ipv4.ping_group_range = 0 2147483647
+net.core.default_qdisc = fq_codel
+fs.protected_hardlinks = 1
+fs.protected_symlinks = 1
+fs.protected_regular = 2
+fs.protected_fifos = 1
+vm.max_map_count = 1048576
+kernel.pid_max = 4194304
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+net.ipv4.icmp_echo_ignore_all = 1
+net.ipv6.icmp.echo_ignore_all = 1
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv6.conf.eth0.accept_ra = 2
+net.ipv6.conf.all.forwarding = 1
+net.ipv6.conf.all.addr_gen_mode = 0
+net.ipv6.conf.eth0.use_tempaddr = 0
+
+[33m# Configure SSH to listen on specified ports.[0m
+SSH service reloaded successfully.
+
+# Install standard tools and security packages...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+sudo is already the newest version (1.9.16p2-3+deb13u2).
+cron is already the newest version (3.0pl1-197).
+rsyslog is already the newest version (8.2504.0-1+deb13u2).
+mc is already the newest version (3:4.8.33-1+deb13u1).
+curl is already the newest version (8.14.1-2+deb13u7).
+wget is already the newest version (1.25.0-2).
+htop is already the newest version (3.4.1-5).
+iptables is already the newest version (1.8.11-2).
+locales is already the newest version (2.41-12+deb13u4).
+screen is already the newest version (4.9.1-3).
+openssl is already the newest version (3.5.7-1~deb13u3).
+openssl set to manually installed.
+gpg is already the newest version (2.4.7-21+deb13u1+b5).
+gpg set to manually installed.
+Solving dependencies...
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ iptables-persistent : Depends: netfilter-persistent (= 1.0.23) but it is not installable
+ ufw : Breaks: iptables-persistent but 1.0.23 is to be installed
+E: Unable to correct problems, you have held broken packages.
+E: The following information from --solver 3.0 may provide additional context:
+   Unable to satisfy dependencies. Reached two conflicting decisions:
+   1. ufw:amd64=0.36.2-9 is selected for install
+   2. ufw:amd64 is not selected for install because:
+      1. iptables-persistent:amd64=1.0.23 is selected for install
+      2. ufw:amd64 Breaks iptables-persistent

@@ -17,7 +17,7 @@ if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     source /etc/os-release
     case "${VERSION_ID:-}" in
-        12*|13*|14*) F2B_BACKEND="backend = systemd" ;;
+        12*|13*|14*|"") F2B_BACKEND="backend = systemd" ;;
     esac
 fi
 

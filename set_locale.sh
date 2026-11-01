@@ -9,7 +9,7 @@ RED='\033[0;31m'
 echo -en "${RED}Set UTF-8 locales."
 tput sgr0
 
-echo "Set UTF-8 locales."
+echo ""
 sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen
 sed -i 's/^# *\(ru_RU.UTF-8\)/\1/' /etc/locale.gen
 locale-gen

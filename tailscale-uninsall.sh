@@ -166,6 +166,18 @@ main() {
             set -x
             # Останавливаем сервис перед удалением
             $SUDO systemctl stop tailscaled 2>/dev/null || true
+            # Убираем наш fix-exit-node-ip.service (иначе останется сиротой
+            # с Requires=tailscaled.service и будет падать на каждой загрузке)
+            $SUDO systemctl disable --now fix-exit-node-ip.service 2>/dev/null || true
+            $SUDO rm -f /etc/systemd/system/fix-exit-node-ip.service
+            $SUDO systemctl daemon-reload 2>/dev/null || true
+            # Убираем наши SNAT/MASQUERADE-правила из ts-postrouting, если цепочка ещё жива
+            # (to-source у каждого бокса свой, поэтому удаляем по маркеру 0x40000/0xff0000)
+            $SUDO iptables -t nat -S ts-postrouting 2>/dev/null | grep '0x40000/0xff0000' | while read -r line; do
+                rule=$(echo "$line" | sed 's/^-A /-D /')
+                # shellcheck disable=SC2086
+                $SUDO iptables -t nat $rule 2>/dev/null || true
+            done
             # Удаляем пакет (purge очищает конфиги)
             $SUDO apt-get purge -y tailscale
             $SUDO apt-get autoremove -y
