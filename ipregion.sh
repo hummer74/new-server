@@ -449,12 +449,6 @@ EXCLUDED_SERVICES=(
   # "IPAPI_CO"
 )
 
-IDENTITY_SERVICES=(
-  "ident.me"
-  "ifconfig.me"
-  "api64.ipify.org"
-  "ifconfig.me"
-)
 
 IPV6_OVER_IPV4_SERVICES=(
   "IPINFO_IO"
@@ -528,6 +522,7 @@ log() {
 error_exit() {
   local message="$1"
   local exit_code="${2:-1}"
+  spinner_stop
   printf "%s %s\n" "$(color ERROR '[ERROR]')" "$(color TABLE_HEADER "$message")" >&2
   display_help
   exit "$exit_code"
@@ -2036,13 +2031,13 @@ lookup_amazon_prime() {
   local isBlocked=$(echo "$tmpresult" | grep -i 'isServiceRestricted')
   local region=$(echo "$tmpresult" | grep -woP '"currentTerritory":"\K[^"]+' | head -n 1)
   
-  if [[ -z "$is_available" ]]; then
-    region="${region:0:2}"
-    echo "$region"
-  else
+  if [[ -n "$isBlocked" ]]; then
     is_available="No"
     color_name="HEART"
 	print_value_or_colored "$is_available" "$color_name"
+  else
+    region="${region:0:2}"
+    echo "$region"
   fi
 }
 
