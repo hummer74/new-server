@@ -1,6 +1,6 @@
 # new-server — bootstrap Debian-сервера
 
-Оркестратор: `new-server.sh` (+ `config.env` рядом). Только Debian 11+.
+Оркестратор: `new-server.sh`. Только Debian 11+.
 Запуск: `bash startinstall.sh` (тянет `new-server.sh` с GitHub) или локально `./new-server.sh`.
 
 Одной командой на чистом сервере (скопировать в SSH):
@@ -20,7 +20,7 @@ Split-сеть (`INBOUND/OUTBOUND`, без хардкода адресов): а�
 
 Выполни на любом Debian до запуска:
 ```bash
-bash -n new-server.sh && bash -n config.env && echo SYNTAX-OK
+bash -n new-server.sh && echo SYNTAX-OK
 shellcheck -S warning new-server.sh ssh2router.sh auto-update.sh 2>&1 | head -n 40
 ip -4 -o addr show scope global   # сверить: список должен показать оба IP для split
 ```
