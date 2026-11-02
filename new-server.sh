@@ -687,19 +687,22 @@ configure_ufw() {
     ufw default deny incoming || true
     ufw default allow outgoing || true
     for port in "${SSH_PORTS[@]}"; do
+        # NOTE: do NOT use 'ufw limit' here. It rate-limits to 6 NEW conns per
+        # 30s per source: any client that retries (SSH clients reconnecting,
+        # plain TCP SYN retransmits every 1/2/4/8/16s) trips it, gets REJECTed,
+        # and the ICMP reject often never reaches the client -> the client just
+        # hangs on connect. Brute-force protection is fail2ban's job (bantime
+        # 30d). Deletes first for re-run safety.
         if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$INBOUND_IP" ]; then
-            # NOTE: 'limit' already ACCEPTs the traffic (rate-limited). A plain
-            # 'allow' for the same port would match first and shadow the limit,
-            # so only the limit rule is kept. Deletes first for re-run safety.
-            ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
             ufw delete limit to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
-            ufw limit to "$INBOUND_IP" port "$port" proto tcp || { echo "ERROR: ufw limit failed for $INBOUND_IP:$port"; exit 1; }
-            echo "Limited SSH port $port on $INBOUND_IP in UFW."
+            ufw delete allow to "$INBOUND_IP" port "$port" proto tcp 2>/dev/null || true
+            ufw allow to "$INBOUND_IP" port "$port" proto tcp || { echo "ERROR: ufw allow failed for $INBOUND_IP:$port"; exit 1; }
+            echo "Allowed SSH port $port on $INBOUND_IP in UFW."
         else
-            ufw delete allow "$port/tcp" 2>/dev/null || true
             ufw delete limit "$port/tcp" 2>/dev/null || true
-            ufw limit "$port/tcp" || { echo "ERROR: ufw limit failed for port $port"; exit 1; }
-            echo "Limited SSH port $port in UFW."
+            ufw delete allow "$port/tcp" 2>/dev/null || true
+            ufw allow "$port/tcp" || { echo "ERROR: ufw allow failed for port $port"; exit 1; }
+            echo "Allowed SSH port $port in UFW."
         fi
     done
     if [ -f /etc/wireguard/wg0.conf ]; then
