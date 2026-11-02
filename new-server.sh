@@ -554,6 +554,15 @@ ask_master_password_and_extract() {
     fi
 
     MASTER_PASSWORD=""
+    # Preserve live SSH access: setup.7z carries its own .ssh/authorized_keys
+    # and '7za x -aoa' below would silently replace ours -> instant lockout.
+    # Stash ours now, merge back after extraction.
+    local KEPT_KEYS=""
+    if [ -f ~/.ssh/authorized_keys ]; then
+        KEPT_KEYS=$(mktemp)
+        cp ~/.ssh/authorized_keys "$KEPT_KEYS"
+        echo "Live authorized_keys stashed (${KEPT_KEYS})."
+    fi
     # NOTE: 7za receives the password via -p, so it is briefly visible in the
     # process list (ps) during extraction. Unavoidable with p7zip CLI.
     for attempt in {1..5}; do
@@ -583,6 +592,17 @@ ask_master_password_and_extract() {
     chmod 644 ~/.ssh/known_hosts 2>/dev/null || true
     chmod 644 ~/.ssh/config 2>/dev/null || true
     chmod +x ~/*.sh 2>/dev/null || true
+    # Merge back live keys the archive may have overwritten (dedupe by line).
+    if [ -n "$KEPT_KEYS" ] && [ -f "$KEPT_KEYS" ]; then
+        touch ~/.ssh/authorized_keys
+        while IFS= read -r keyline || [ -n "$keyline" ]; do
+            [ -z "$keyline" ] && continue
+            grep -Fxq "$keyline" ~/.ssh/authorized_keys || echo "$keyline" >> ~/.ssh/authorized_keys
+        done < "$KEPT_KEYS"
+        rm -f "$KEPT_KEYS"
+        chmod 600 ~/.ssh/authorized_keys
+        echo "Live SSH keys merged back into authorized_keys."
+    fi
     echo ""
 }
 
@@ -612,10 +632,28 @@ setup_users() {
 
     if [ -d /home/opossum ]; then
         if [ -f /root/opossum.7z ]; then
+            # Same lockout hazard as root keys: re-runs would wipe keys the
+            # user may have added to opossum's authorized_keys. Stash & merge.
+            local OPOSSUM_KEPT=""
+            if [ -f /home/opossum/.ssh/authorized_keys ]; then
+                OPOSSUM_KEPT=$(mktemp)
+                cp /home/opossum/.ssh/authorized_keys "$OPOSSUM_KEPT"
+            fi
             cp /root/opossum.7z /home/opossum/
             cd /home/opossum
             7za x -p"$MASTER_PASSWORD" opossum.7z -aoa
             rm -f opossum.7z
+            if [ -n "$OPOSSUM_KEPT" ] && [ -f "$OPOSSUM_KEPT" ]; then
+                mkdir -p /home/opossum/.ssh
+                touch /home/opossum/.ssh/authorized_keys
+                while IFS= read -r keyline || [ -n "$keyline" ]; do
+                    [ -z "$keyline" ] && continue
+                    grep -Fxq "$keyline" /home/opossum/.ssh/authorized_keys || echo "$keyline" >> /home/opossum/.ssh/authorized_keys
+                done < "$OPOSSUM_KEPT"
+                rm -f "$OPOSSUM_KEPT"
+                chmod 600 /home/opossum/.ssh/authorized_keys
+                echo "Live opossum SSH keys merged back."
+            fi
             chmod +x opossum.sh 2>/dev/null || true
             chown -R opossum:opossum /home/opossum
             cd /root
