@@ -717,6 +717,19 @@ configure_ufw() {
     echo ""
 }
 
+is_self_z_jumper() {
+    # True (0) when this host IS the z-jumper: any resolution of
+    # Z_ROUTER_HOST matches a local global IPv4. Hostname is NOT used
+    # (pretty-name is hand-typed and changes on reruns/renames).
+    local rip lip
+    for rip in $(getent ahosts "$Z_ROUTER_HOST" 2>/dev/null | awk '{print $1}' | sort -u; echo "$Z_ROUTER_HOST"); do
+        for lip in $(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 || true); do
+            [ "$rip" == "$lip" ] && return 0
+        done
+    done
+    return 1
+}
+
 setup_reverse_tunnel_to() {
     # One jumper leg. Arg JID: x = OpenWrt router, z = 03-RU reserve.
     local JID="$1"
@@ -728,6 +741,17 @@ setup_reverse_tunnel_to() {
         z) RHOST="$Z_ROUTER_HOST"; RPORT="$Z_ROUTER_PORT"; RUSER="$Z_ROUTER_USER"; RDESC="03-RU" ;;
         *) echo "ERROR: unknown jumper '$JID'." | tee -a "$REVERSE_LOG"; return 1 ;;
     esac
+
+    if [ "$JID" == "z" ] && is_self_z_jumper; then
+        echo "SKIP leg [z]: this host IS z-jumper ($Z_ROUTER_HOST matches a local IP; hostname=$(hostname)) — self-tunnel not created." | tee -a "$REVERSE_LOG"
+        for svc in $(systemctl list-units --type=service --all "reverse-tunnel-z@*" --no-legend 2>/dev/null | awk '{print $1}' || true); do
+            [ -n "$svc" ] || continue
+            systemctl stop "$svc" 2>/dev/null || true
+            systemctl disable "$svc" 2>/dev/null || true
+            echo "Removed stale self-tunnel unit: $svc" | tee -a "$REVERSE_LOG"
+        done
+        return 0
+    fi
 
     # Deterministic: senior SSH port from config, not from ss parsing
     local LOCAL_SSH_PORT="${SSH_PORTS[${#SSH_PORTS[@]}-1]}"
