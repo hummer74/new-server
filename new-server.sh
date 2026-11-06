@@ -23,10 +23,14 @@ F2B_MAXRETRY=4
 # Setup Archive
 SETUP_ARCHIVE_URL="https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z"
 
-# Reverse SSH Tunnel
+# Reverse SSH Tunnel, jumper x (primary OpenWrt router)
 ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
 ROUTER_PORT=24930
+# Reverse SSH Tunnel, jumper z (reserve, 03-RU). Same key, same user.
+Z_ROUTER_USER="tunneluser"
+Z_ROUTER_HOST="45.151.139.193"
+Z_ROUTER_PORT=24940
 
 # Tailscale (optional step: local file next to script wins, else URL)
 TAILSCALE_INSTALL_URL="https://raw.githubusercontent.com/hummer74/new-server/main/tailscale-insall.sh"
@@ -713,54 +717,52 @@ configure_ufw() {
     echo ""
 }
 
-setup_reverse_tunnel() {
-    echo "=============================================="
-    echo " Setting up Reverse SSH Tunnel to OpenWrt "
-    echo "=============================================="
+setup_reverse_tunnel_to() {
+    # One jumper leg. Arg JID: x = OpenWrt router, z = 03-RU reserve.
+    local JID="$1"
     local KEY_PATH="/root/.ssh/ssh2router-key"
     local REVERSE_LOG="/root/reverse_ssh.log"
+    local RHOST RPORT RUSER RDESC
+    case "$JID" in
+        x) RHOST="$ROUTER_HOST"; RPORT="$ROUTER_PORT"; RUSER="$ROUTER_USER"; RDESC="OpenWrt" ;;
+        z) RHOST="$Z_ROUTER_HOST"; RPORT="$Z_ROUTER_PORT"; RUSER="$Z_ROUTER_USER"; RDESC="03-RU" ;;
+        *) echo "ERROR: unknown jumper '$JID'." | tee -a "$REVERSE_LOG"; return 1 ;;
+    esac
 
-    if [ ! -f "$KEY_PATH" ]; then
-        echo "ERROR: $KEY_PATH not found (it arrives inside setup.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
-        echo "Reverse tunnel cannot be set up without this private key."
-        while true; do
-            read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
-            case "$key_choice" in
-                [Qq]*) echo "Aborted by user (missing ssh2router key)."; exit 1 ;;
-                [Cc]*) echo "Continuing without reverse tunnel." | tee -a "$REVERSE_LOG"; return 0 ;;
-                *) echo "Enter q or c." ;;
-            esac
-        done
-    fi
-
-    chmod 600 "$KEY_PATH"
     # Deterministic: senior SSH port from config, not from ss parsing
     local LOCAL_SSH_PORT="${SSH_PORTS[${#SSH_PORTS[@]}-1]}"
     if [ -z "$LOCAL_SSH_PORT" ]; then
         LOCAL_SSH_PORT=22
     fi
     
-    echo "Local SSH port: $LOCAL_SSH_PORT" | tee -a "$REVERSE_LOG"
-    local NAME_PREFIX=$(echo "$NEW_HOSTNAME" | grep -oE '[0-9]{2}' | head -n 1)
+    echo "Local SSH port: $LOCAL_SSH_PORT (leg $JID -> $RDESC $RHOST:$RPORT)" | tee -a "$REVERSE_LOG"
+    local NAME_PREFIX=$(echo "$NEW_HOSTNAME" | grep -oE '[0-9]{2}' | head -n 1 || true)
     local DEFAULT_REVERSE_PORT="25900"
     
     if [ -n "$NAME_PREFIX" ]; then
         DEFAULT_REVERSE_PORT="259$NAME_PREFIX"
     fi
     
-    printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
+    printf "Enter REMOTE port on %s-jumper %s %s (default %s): " "$JID" "$RDESC" "$RHOST" "$DEFAULT_REVERSE_PORT"
     read USER_INPUT_PORT || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
     local REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
     
     if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
         echo "Error: port must be a number, skipping tunnel setup." | tee -a "$REVERSE_LOG"
-        return
+        return 0
     fi
 
-    local SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
-    local SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
+    local SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel-${JID}@.service"
+    local SERVICE_INSTANCE="reverse-tunnel-${JID}@${REVERSE_PORT}.service"
     
-    mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "reverse-tunnel@*" --no-legend 2>/dev/null | awk '{print $1}')
+    # Leg x also owns legacy single-template units (reverse-tunnel@*).
+    local UNIT_GLOB="reverse-tunnel-${JID}@*"
+    local UNIT_EXCLUDE='^$'
+    if [ "$JID" == "x" ]; then
+        UNIT_GLOB="reverse-tunnel*"
+        UNIT_EXCLUDE='reverse-tunnel-z@'
+    fi
+    mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "$UNIT_GLOB" --no-legend 2>/dev/null | awk '{print $1}' | grep -v "$UNIT_EXCLUDE" || true)
     if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
         echo "Found existing tunnel services:" | tee -a "$REVERSE_LOG"
         for i in "${!EXISTING_SERVICES[@]}"; do
@@ -801,7 +803,7 @@ setup_reverse_tunnel() {
 
     cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
-Description=Reverse SSH Tunnel to OpenWrt on port %i
+Description=Reverse SSH Tunnel to $RDESC ($RHOST) on port %i
 After=network-online.target
 Wants=network-online.target
 
@@ -818,9 +820,9 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "ExitOnForwardFailure=yes" \\
     -o "TCPKeepAlive=yes" \\
     -i $KEY_PATH \\
-    -p $ROUTER_PORT \\
+    -p $RPORT \\
     -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
-    $ROUTER_USER@$ROUTER_HOST
+    $RUSER@$RHOST
 
 Restart=always
 RestartSec=10
@@ -847,7 +849,33 @@ EOF
         echo "ERROR: Tunnel service $SERVICE_INSTANCE failed to start." | tee -a "$REVERSE_LOG"
         journalctl -u "$SERVICE_INSTANCE" --no-pager -n 15 | tee -a "$REVERSE_LOG" || true
     fi
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$REVERSE_LOG"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel [$JID]: ${RHOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$REVERSE_LOG"
+}
+
+setup_reverse_tunnel() {
+    # Both jumper legs, always. No selection prompt.
+    echo "=============================================="
+    echo " Setting up Reverse SSH Tunnels (x + z) "
+    echo "=============================================="
+    local KEY_PATH="/root/.ssh/ssh2router-key"
+    local REVERSE_LOG="/root/reverse_ssh.log"
+
+    if [ ! -f "$KEY_PATH" ]; then
+        echo "ERROR: $KEY_PATH not found (it arrives inside setup.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
+        echo "Reverse tunnel cannot be set up without this private key."
+        while true; do
+            read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
+            case "$key_choice" in
+                [Qq]*) echo "Aborted by user (missing ssh2router key)."; exit 1 ;;
+                [Cc]*) echo "Continuing without reverse tunnel." | tee -a "$REVERSE_LOG"; return 0 ;;
+                *) echo "Enter q or c." ;;
+            esac
+        done
+    fi
+
+    chmod 600 "$KEY_PATH"
+    setup_reverse_tunnel_to x
+    setup_reverse_tunnel_to z
 }
 
 setup_tailscale_exit_node() {

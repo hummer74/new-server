@@ -10,12 +10,15 @@ fi
 ROUTER_USER="tunneluser"
 ROUTER_HOST="mousehouse.ignorelist.com"
 ROUTER_PORT=24930
+Z_ROUTER_USER="tunneluser"
+Z_ROUTER_HOST="45.151.139.193"
+Z_ROUTER_PORT=24940
 SSH_PORTS=(22 24940)
 LOG_FILE="/root/reverse_ssh.log"
 KEY_PATH="/root/.ssh/ssh2router-key"
 
 echo "=============================================="
-echo " Setting up Reverse SSH Tunnel to OpenWrt "
+echo " Setting up Reverse SSH Tunnels (x + z) "
 echo "=============================================="
 
 # 0. Key check (arrives via setup.7z)
@@ -33,13 +36,23 @@ if [ ! -f "$KEY_PATH" ]; then
 fi
 chmod 600 "$KEY_PATH"
 
+setup_reverse_tunnel_to() {
+    # One jumper leg. Arg JID: x = OpenWrt router, z = 03-RU reserve.
+    local JID="$1"
+    local RHOST RPORT RUSER RDESC
+    case "$JID" in
+        x) RHOST="$ROUTER_HOST"; RPORT="$ROUTER_PORT"; RUSER="$ROUTER_USER"; RDESC="OpenWrt" ;;
+        z) RHOST="$Z_ROUTER_HOST"; RPORT="$Z_ROUTER_PORT"; RUSER="$Z_ROUTER_USER"; RDESC="03-RU" ;;
+        *) echo "ERROR: unknown jumper '$JID'." | tee -a "$LOG_FILE"; exit 1 ;;
+    esac
+
 # 1. Local SSH port: deterministic senior port from config (same as orchestrator)
 LOCAL_SSH_PORT="${SSH_PORTS[${#SSH_PORTS[@]}-1]}"
 if [ -z "$LOCAL_SSH_PORT" ]; then
     LOCAL_SSH_PORT=22
 fi
 
-echo "Local SSH port: $LOCAL_SSH_PORT" | tee -a "$LOG_FILE"
+echo "Local SSH port: $LOCAL_SSH_PORT (leg $JID -> $RDESC $RHOST:$RPORT)" | tee -a "$LOG_FILE"
 
 # 2. Default remote port from pretty hostname (same as orchestrator)
 NEW_HOSTNAME=$(hostnamectl --pretty 2>/dev/null || true)
@@ -53,7 +66,7 @@ if [ -n "$NAME_PREFIX" ]; then
     DEFAULT_REVERSE_PORT="259$NAME_PREFIX"
 fi
 
-printf "Enter REMOTE port on OpenWrt (default %s): " "$DEFAULT_REVERSE_PORT"
+printf "Enter REMOTE port on %s-jumper %s %s (default %s): " "$JID" "$RDESC" "$RHOST" "$DEFAULT_REVERSE_PORT"
 read USER_INPUT_PORT || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
 REVERSE_PORT=${USER_INPUT_PORT:-$DEFAULT_REVERSE_PORT}
 
@@ -62,11 +75,18 @@ if ! [[ "$REVERSE_PORT" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel@.service"
-SERVICE_INSTANCE="reverse-tunnel@${REVERSE_PORT}.service"
+SERVICE_TEMPLATE="/etc/systemd/system/reverse-tunnel-${JID}@.service"
+SERVICE_INSTANCE="reverse-tunnel-${JID}@${REVERSE_PORT}.service"
 
-# 3. Manage existing reverse-tunnel services (same as orchestrator)
-mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "reverse-tunnel@*" --no-legend 2>/dev/null | awk '{print $1}' || true)
+# 3. Manage existing reverse-tunnel services of this leg (same as orchestrator)
+# Leg x also owns legacy single-template units (reverse-tunnel@*).
+UNIT_GLOB="reverse-tunnel-${JID}@*"
+UNIT_EXCLUDE='^$'
+if [ "$JID" == "x" ]; then
+    UNIT_GLOB="reverse-tunnel*"
+    UNIT_EXCLUDE='reverse-tunnel-z@'
+fi
+mapfile -t EXISTING_SERVICES < <(systemctl list-units --type=service --all "$UNIT_GLOB" --no-legend 2>/dev/null | awk '{print $1}' | grep -v "$UNIT_EXCLUDE" || true)
 if [ ${#EXISTING_SERVICES[@]} -gt 0 ]; then
     echo "Found existing tunnel services:" | tee -a "$LOG_FILE"
     for i in "${!EXISTING_SERVICES[@]}"; do
@@ -122,7 +142,7 @@ fi
 echo "Creating/Updating systemd unit file..."
 cat > "$SERVICE_TEMPLATE" <<EOF
 [Unit]
-Description=Reverse SSH Tunnel to OpenWrt on port %i
+Description=Reverse SSH Tunnel to $RDESC ($RHOST) on port %i
 After=network-online.target
 Wants=network-online.target
 
@@ -139,9 +159,9 @@ ExecStart=/usr/bin/autossh -M 0 -N \\
     -o "ExitOnForwardFailure=yes" \\
     -o "TCPKeepAlive=yes" \\
     -i $KEY_PATH \\
-    -p $ROUTER_PORT \\
+    -p $RPORT \\
     -R %i:127.0.0.1:$LOCAL_SSH_PORT \\
-    $ROUTER_USER@$ROUTER_HOST
+    $RUSER@$RHOST
 
 Restart=always
 RestartSec=10
@@ -168,4 +188,9 @@ else
     echo "ERROR: Tunnel service $SERVICE_INSTANCE failed to start." | tee -a "$LOG_FILE"
     journalctl -u "$SERVICE_INSTANCE" --no-pager -n 15 | tee -a "$LOG_FILE" || true
 fi
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel: ${ROUTER_HOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$LOG_FILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] REVERSE Tunnel [$JID]: ${RHOST}:${REVERSE_PORT} -> ${NEW_HOSTNAME}:${LOCAL_SSH_PORT} (Status: $(systemctl is-active "$SERVICE_INSTANCE"))" >> "$LOG_FILE"
+}
+
+# Both jumper legs, always. No selection prompt.
+setup_reverse_tunnel_to x
+setup_reverse_tunnel_to z
