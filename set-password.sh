@@ -36,8 +36,8 @@ read_secret() { # $1 = prompt, echoes value on stdout
             echo "Empty password, try again." >&2
             continue
         fi
-        if [ ${#val1} -lt 12 ]; then
-            echo "Too short (min 12 chars), try again." >&2
+        if [ ${#val1} -lt 6 ]; then
+            echo "Too short (min 6 chars), try again." >&2
             continue
         fi
         if [ "$val1" != "$val2" ]; then
