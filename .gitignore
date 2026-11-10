@@ -1,3 +1,4 @@
 LOG/
+.ssh-agent/
 # Local overrides: real values live in new-server.sh, this file is machine-local
 config.env
