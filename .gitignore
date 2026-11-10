@@ -2,3 +2,5 @@ LOG/
 .ssh-agent/
 # Local overrides: real values live in new-server.sh, this file is machine-local
 config.env
+# Unpacked setup.7z contents (secrets live here, never commit)
+setarc/

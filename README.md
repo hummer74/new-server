@@ -25,16 +25,17 @@ Split-сеть (`INBOUND/OUTBOUND`, без хардкода адресов): а�
 Выполни на любом Debian до запуска:
 ```bash
 bash -n new-server.sh && echo SYNTAX-OK
-shellcheck -S warning new-server.sh ssh2router.sh auto-update.sh 2>&1 | head -n 40
+shellcheck -S warning new-server.sh auto-update.sh 2>&1 | head -n 40
 ip -4 -o addr show scope global   # сверить: список должен показать оба IP для split
 ```
 
 ## Остальные скрипты
 
 - `tailscale-insall.sh`, `tailscale-exit-node.sh`, `tailscale-uninsall.sh` — Tailscale.
-- `ssh2router.sh` — автономный reverse-туннель (дубль функции из `new-server.sh`).
+- `ssh2router.sh` (в архиве) — автономный reverse-туннель (дубль функции из `new-server.sh`).
 - `ip-check.sh`, `ipregion.sh` — диагностика сети/гео IP.
-- `add-crontab.sh`, `auto-update.sh`, `f2b-install.sh`, `create-swap512.sh`,
+- `add-crontab.sh`, `auto-update.sh`, `create-swap512.sh`,
   `right.sh`, `set_locale.sh` — точечные утилиты.
+- `f2b-install.sh` (в архиве) — автономный fail2ban.
 - `domain.txt` — домены для TLS-маскировки.
-- `setup.7z` — приватный архив (`~/.ssh`, пароли). Не коммитить изменения без нужды.
+- `setarc.7z` — приватный архив (`~/.ssh`, пароли). Не коммитить изменения без нужды.

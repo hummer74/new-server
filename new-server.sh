@@ -14,22 +14,22 @@ LOG_FILE="/root/new-server.log"
 SWAP_SIZE_MB=512
 SSH_PORTS=(22 24940)
 
-# Security & Fail2ban
-F2B_IGNORE_IPS="45.86.86.195 46.29.239.23 45.38.143.206 166.1.36.170 166.1.36.191 176.125.243.194 194.58.68.23 176.56.1.165 95.78.162.177"
+# Security & Fail2ban (secret: real value comes from config.env inside the archive)
+F2B_IGNORE_IPS="__SET_IN_CONFIG_ENV__"
 F2B_BANTIME="30d"
 F2B_FINDTIME="1440m"
 F2B_MAXRETRY=4
 
 # Setup Archive
-SETUP_ARCHIVE_URL="https://raw.githubusercontent.com/hummer74/new-server/main/setup.7z"
+SETUP_ARCHIVE_URL="https://raw.githubusercontent.com/hummer74/new-server/main/setarc.7z"
 
-# Reverse SSH Tunnel, jumper x (primary OpenWrt router)
+# Reverse SSH Tunnel, jumper x (secret: real host comes from config.env inside the archive)
 ROUTER_USER="tunneluser"
-ROUTER_HOST="mousehouse.ignorelist.com"
+ROUTER_HOST="__SET_IN_CONFIG_ENV__"
 ROUTER_PORT=24930
-# Reverse SSH Tunnel, jumper z (reserve, 03-RU). Same key, same user.
+# Reverse SSH Tunnel, jumper z (secret: real host comes from config.env inside the archive)
 Z_ROUTER_USER="tunneluser"
-Z_ROUTER_HOST="45.151.139.193"
+Z_ROUTER_HOST="__SET_IN_CONFIG_ENV__"
 Z_ROUTER_PORT=24940
 
 # Tailscale (optional step: local file next to script wins, else URL)
@@ -250,15 +250,16 @@ EOF
 
 fix_apt_sources() {
     echo "Checking and fixing APT sources..."
+    # Only stock Debian files are moved; third-party repos (tailscale.list etc.) stay.
     if [ -d /etc/apt/sources.list.d ]; then
-        for src in /etc/apt/sources.list.d/*.sources; do
+        for src in /etc/apt/sources.list.d/debian.sources; do
             if [ -f "$src" ]; then
                 echo "Found deb822 file: $src - moving to /root/apt-backups/"
                 mkdir -p /root/apt-backups
                 mv "$src" "/root/apt-backups/$(basename "$src").bak-$(date +%Y%m%d%H%M%S)"
             fi
         done
-        for listfile in /etc/apt/sources.list.d/*.list; do
+        for listfile in /etc/apt/sources.list.d/debian.list; do
             if [ -f "$listfile" ]; then
                 echo "Removing conflicting .list file: $listfile"
                 mkdir -p /root/apt-backups
@@ -306,7 +307,7 @@ update_system() {
     echo "# Install all updates."
     wait_for_apt_lock
     dpkg --configure -a
-    apt-get clean -y && rm -rf /var/lib/apt/lists/*
+    apt-get clean && rm -rf /var/lib/apt/lists/*
     echo "# Updating package lists..."
     apt-get update -y || { echo "ERROR: apt update failed"; exit 1; }
     echo "# Full upgrade..."
@@ -459,7 +460,7 @@ EOF
 
 configure_fail2ban() {
     echo "Configuring Fail2ban..."
-    systemctl enable fail2ban.service
+    systemctl enable fail2ban.service || echo "WARNING: enable fail2ban failed (continuing)."
     cat > /etc/fail2ban/fail2ban.local <<EOF
 [Definition]
 allowipv6 = auto
@@ -498,7 +499,7 @@ $f2b_sshd_log
 EOF
 
     if fail2ban-client -t >/dev/null 2>&1; then
-        systemctl restart fail2ban.service
+        systemctl restart fail2ban.service || echo "WARNING: Fail2ban failed to start."
         sleep 2
         if systemctl is-active --quiet fail2ban.service; then
             echo "Fail2ban is active and protecting SSH."
@@ -535,8 +536,8 @@ Unattended-Upgrade::Remove-Unused-Dependencies "true";
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-Time "00:01";
 EOF
-    systemctl enable unattended-upgrades
-    systemctl restart unattended-upgrades
+    systemctl enable unattended-upgrades || echo "WARNING: enable unattended-upgrades failed (continuing)."
+    systemctl restart unattended-upgrades || echo "WARNING: restart unattended-upgrades failed (continuing)."
     echo ""
 }
 
@@ -551,14 +552,14 @@ EOF
 }
 
 ask_master_password_and_extract() {
-    wget -O setup.7z "$SETUP_ARCHIVE_URL"
-    if [ ! -s setup.7z ]; then
+    wget -O setarc.7z "$SETUP_ARCHIVE_URL"
+    if [ ! -s setarc.7z ]; then
         echo "Error: downloaded file is empty"
         exit 1
     fi
 
     MASTER_PASSWORD=""
-    # Preserve live SSH access: setup.7z carries its own .ssh/authorized_keys
+    # Preserve live SSH access: setarc.7z carries its own .ssh/authorized_keys
     # and '7za x -aoa' below would silently replace ours -> instant lockout.
     # Stash ours now, merge back after extraction.
     local KEPT_KEYS=""
@@ -572,7 +573,7 @@ ask_master_password_and_extract() {
     for attempt in {1..5}; do
         read -s -p "Enter master password for setup & user (attempt $attempt/5): " MASTER_PASSWORD || { echo; echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
         echo
-        if 7za x -p"$MASTER_PASSWORD" setup.7z -aoa >/dev/null 2>&1; then
+        if 7za x -p"$MASTER_PASSWORD" setarc.7z -aoa >/dev/null 2>&1; then
             echo "Archive extracted successfully."
             break
         else
@@ -583,7 +584,7 @@ ask_master_password_and_extract() {
             fi
         fi
     done
-    rm -f setup.7z
+    rm -f setarc.7z
 
     echo "Fixing permissions..."
     chmod 700 ~/.config/htop 2>/dev/null || true
@@ -607,6 +608,22 @@ ask_master_password_and_extract() {
         chmod 600 ~/.ssh/authorized_keys
         echo "Live SSH keys merged back into authorized_keys."
     fi
+    # config.env may have arrived inside the archive (top-of-script source ran before extraction).
+    if [ -f ./config.env ]; then
+        echo "Sourcing ./config.env from archive."
+        # shellcheck disable=SC1091
+        source ./config.env
+    fi
+    # Secrets must come from config.env (archive); refuse to run on placeholders or empties.
+    for _req in "$ROUTER_HOST" "$Z_ROUTER_HOST" "$F2B_IGNORE_IPS"; do
+        case "$_req" in
+            ""|*__SET_IN_CONFIG_ENV__*)
+                echo "ERROR: secrets not provided (config.env missing or incomplete). Aborting."
+                exit 1
+                ;;
+        esac
+    done
+    unset _req
     echo ""
 }
 
@@ -864,8 +881,8 @@ EOF
         systemd-analyze verify "$SERVICE_TEMPLATE" 2>&1 | tee -a "$REVERSE_LOG" || true
     fi
     systemctl daemon-reload
-    systemctl enable "$SERVICE_INSTANCE"
-    systemctl restart "$SERVICE_INSTANCE"
+    systemctl enable "$SERVICE_INSTANCE" || echo "WARNING: enable $SERVICE_INSTANCE failed (continuing)." | tee -a "$REVERSE_LOG"
+    systemctl restart "$SERVICE_INSTANCE" || echo "WARNING: restart $SERVICE_INSTANCE failed (continuing)." | tee -a "$REVERSE_LOG"
     sleep 3
     if systemctl is-active --quiet "$SERVICE_INSTANCE"; then
         echo "Tunnel service $SERVICE_INSTANCE is active." | tee -a "$REVERSE_LOG"
@@ -885,7 +902,7 @@ setup_reverse_tunnel() {
     local REVERSE_LOG="/root/reverse_ssh.log"
 
     if [ ! -f "$KEY_PATH" ]; then
-        echo "ERROR: $KEY_PATH not found (it arrives inside setup.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
+        echo "ERROR: $KEY_PATH not found (it arrives inside setarc.7z -> /root/.ssh/)." | tee -a "$REVERSE_LOG"
         echo "Reverse tunnel cannot be set up without this private key."
         while true; do
             read -p "Abort installation [q] or continue WITHOUT tunnel [c]? (q/c): " key_choice || { echo "ERROR: no input (stdin closed?). Aborting."; exit 1; }
@@ -998,7 +1015,7 @@ ExecStart=/bin/bash -c 'for i in \$(seq 1 60); do iptables -t nat -L ts-postrout
 WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
-        systemctl enable fix-exit-node-ip.service
+        systemctl enable fix-exit-node-ip.service || echo "WARNING: enable fix-exit-node-ip failed (continuing)."
         echo "   Service fix-exit-node-ip.service enabled."
     fi
 
@@ -1018,7 +1035,7 @@ EOF
 
 configure_cron() {
     local CRON_TMP=$(mktemp)
-    trap 'rm -f "$CRON_TMP"' RETURN
+    trap 'rm -f "${CRON_TMP:-}"' RETURN
     crontab -l 2>/dev/null > "$CRON_TMP" || echo "# New crontab" > "$CRON_TMP"
 
     add_cron_job() {
@@ -1040,7 +1057,7 @@ configure_cron() {
 finalize_and_reboot() {
     echo ""
     printf "\\033[33mLast update and finalizing.\\033[0m\\n"
-    apt-get clean -y && rm -rf /var/lib/apt/lists/* && apt-get update -y && apt-get full-upgrade -y -o Dpkg::Options::="--force-confold" && apt-get autoremove -y && apt-get autoclean
+    apt-get clean && rm -rf /var/lib/apt/lists/* && apt-get update -y && apt-get full-upgrade -y -o Dpkg::Options::="--force-confold" && apt-get autoremove -y && apt-get autoclean
     apt-get autoremove --purge -y
 
     if [ "$USE_SPLIT_NETWORK" == "true" ] && [ -n "$OUTBOUND_IP" ]; then
@@ -1068,7 +1085,7 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-            systemctl enable set-outbound-route.service
+            systemctl enable set-outbound-route.service || echo "WARNING: enable set-outbound-route failed (continuing)."
             
             if ! $IP_BIN route replace default via "$GATEWAY" dev "$MAIN_IFACE" src "$OUTBOUND_IP" 2>/dev/null; then
                 echo "ERROR: Failed to apply outbound route."
@@ -1103,11 +1120,11 @@ ask_hostname
 harden_network
 configure_ssh
 install_packages
+ask_master_password_and_extract
 configure_locales
 configure_fail2ban
 configure_unattended_upgrades
 configure_profile
-ask_master_password_and_extract
 apply_system_passwords
 setup_users
 cleanup_markers
