@@ -33,6 +33,7 @@ ip -4 -o addr show scope global   # сверить: список должен п
 
 - `tailscale-insall.sh`, `tailscale-exit-node.sh`, `tailscale-uninsall.sh` — Tailscale.
 - `ssh2router.sh` (в архиве) — автономный reverse-туннель (дубль функции из `new-server.sh`).
+- `allow-fleet.sh`, `unban-fleet.sh` — операторские: allowlist подсети/хостов и разбан в fail2ban (гоняются с управляющей машины).
 - `ip-check.sh`, `ipregion.sh` — диагностика сети/гео IP.
 - `add-crontab.sh`, `auto-update.sh`, `create-swap512.sh`,
   `right.sh`, `set_locale.sh` — точечные утилиты.
